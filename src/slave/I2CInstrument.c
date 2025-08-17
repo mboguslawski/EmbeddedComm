@@ -45,9 +45,18 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
             context->transfer_size |= (uint32_t)i2c_read_byte_raw(i2c) << (context->byte_counter * 8 );
             context->byte_counter++;
         } else {
+            // Do not save to memory if:
+            // 1. Bytes are coming after already receiving number of bytes specified by transfer_size
+            // OR
+            // 2. Write location points outside dedicated memory
+            if ( (context->byte_counter >= context->transfer_size) || (context->memory_address + context->byte_counter >= context->memory_size) ) {
+                i2c_read_byte_raw(i2c);
+                break;
+            }
+
             // Save into memory
-            context->memory[context->memory_address] = i2c_read_byte_raw(i2c);
-            context->memory_address++;
+            context->memory[context->memory_address + context->byte_counter] = i2c_read_byte_raw(i2c);
+            context->byte_counter++;
         }
         break;
 	
