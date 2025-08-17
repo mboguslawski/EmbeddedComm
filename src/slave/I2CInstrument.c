@@ -5,7 +5,7 @@ struct i2c_context {
     uint32_t memory_size;
 	uint32_t memory_address;
     uint32_t transfer_size;
-	uint32_t bytes_received;
+	uint32_t byte_counter;
     uint8_t address_size;
     uint8_t address_received : 1;
     uint8_t size_received : 1;
@@ -26,24 +26,24 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
     case I2C_SLAVE_RECEIVE:
 
         // Set address received flag if all address bytes were collected.
-        if ( (!context->address_received) && (context->bytes_received == context->address_size) ) {
+        if ( (!context->address_received) && (context->byte_counter == context->address_size) ) {
             context->address_received = true;
-            context->bytes_received = 0;
+            context->byte_counter = 0;
         }
 
         // Set size_received flag if all size bytes were collected (address already received).
-        if ( (context->address_received) && (!context->size_received) && (context->bytes_received == context->address_size) ) {
+        if ( (context->address_received) && (!context->size_received) && (context->byte_counter == context->address_size) ) {
             context->size_received = true;
-            context->bytes_received = 0;
+            context->byte_counter = 0;
         }
 
         if (!context->address_received) {
 			// Receive memory address (can be multiple bytes long)
-            context->memory_address |= (uint32_t)i2c_read_byte_raw(i2c) << (context->bytes_received * 8 );
-            context->bytes_received++;
+            context->memory_address |= (uint32_t)i2c_read_byte_raw(i2c) << (context->byte_counter * 8 );
+            context->byte_counter++;
         } else if (!context->size_received) {
-            context->transfer_size |= (uint32_t)i2c_read_byte_raw(i2c) << (context->bytes_received * 8 );
-            context->bytes_received++;
+            context->transfer_size |= (uint32_t)i2c_read_byte_raw(i2c) << (context->byte_counter * 8 );
+            context->byte_counter++;
         } else {
             // Save into memory
             context->memory[context->memory_address] = i2c_read_byte_raw(i2c);
@@ -62,7 +62,7 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	case I2C_SLAVE_FINISH:
         // Reset all values
         context->memory_address = 0;
-		context->bytes_received = 0;
+		context->byte_counter = 0;
         context->transfer_size = 0;
         context->address_received = false;
         context->size_received = false;
@@ -105,7 +105,7 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
 	context->memory = memory;
 	context->memory_size = memory_size;
 	context->address_size = bytes_needed(memory_size);
-	context->bytes_received = 0;
+	context->byte_counter = 0;
 	context->memory_address = 0;
     context->transfer_size = 0;
     context->address_received = false;
