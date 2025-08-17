@@ -3,9 +3,9 @@
 struct i2c_context {
     uint8_t *memory;
     uint32_t memory_size;
-	uint8_t address_size;
 	uint32_t memory_address;
 	uint32_t bytes_received;
+    uint8_t address_size;
     uint8_t address_received : 1;
 };
 
