@@ -11,6 +11,7 @@ struct i2c_context {
     uint8_t address_size;
     uint8_t address_received : 1;
     uint8_t size_received : 1;
+    status_register_t status_register;
 };
 
 static volatile struct i2c_context i2c0_context, i2c1_context;
@@ -27,40 +28,55 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	// Master has written some data
     case I2C_SLAVE_RECEIVE:
 
+        // Discard byte if any error was detected
+        if (context->status_register != 0) {
+            i2c_read_byte_raw(i2c);
+            break;
+        }
+
         // Set address received flag if all address bytes were collected.
         if ( (!context->address_received) && (context->byte_counter == context->address_size) ) {
             context->address_received = true;
             context->byte_counter = 0;
+
+            // Check address
+            if (context->memory_address >= context->memory_size) {
+                context->status_register |= I2C_O_ERR_INVALID_ADDR;
+            }
         }
 
         // Set size_received flag if all size bytes were collected (address already received).
         if ( (context->address_received) && (!context->size_received) && (context->byte_counter == context->address_size) ) {
             context->size_received = true;
             context->byte_counter = 0;
+
+            // Check if declared transfer size does not exceed write_buffer size (if enabled)
+            if ( (context->write_buffer != NULL) && (context->transfer_size > context->max_transfer_size) ) {
+                context->status_register |= I2C_O_ERR_WBUFFER_OVERFLOW;
+            }
+
+            // Check if data will not overflow memory
+            if (context->memory_address + context->transfer_size >= context->memory_size) {
+                context->status_register |= I2C_O_ERR_INVALID_ADDR;
+            }
         }
 
+        // Address not set, so received byte is part of it
         if (!context->address_received) {
 			// Receive memory address (can be multiple bytes long)
             context->memory_address |= (uint32_t)i2c_read_byte_raw(i2c) << (context->byte_counter * 8 );
             context->byte_counter++;
+
+        // Transfer size not set, so received byte is part of it
         } else if (!context->size_received) {
             context->transfer_size |= (uint32_t)i2c_read_byte_raw(i2c) << (context->byte_counter * 8 );
             context->byte_counter++;
+
+        // Address and transfer_size are both set, so received byte is accual data that will be saved to memory (providing no error will occur).
         } else {
-            // Do not save to memory if:
-            // 1. Bytes are coming after already receiving number of bytes specified by transfer_size
-            // OR
-            // 2. Write location points outside dedicated memory
-            // OR
-            // 3. If enabled, write buffer will overflow
-            if ( 
-                (context->byte_counter >= context->transfer_size) || 
-                (context->memory_address + context->byte_counter >= context->memory_size) ||
-                ( (context->write_buffer != NULL) && (context->byte_counter >= context->max_transfer_size) )
-            )
-            {
-                i2c_read_byte_raw(i2c);
-                break;
+            // Check for mismatch between declared transfer size and number of bytes received.
+            if (context->byte_counter >= context->transfer_size) {
+                context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
             }
 
             // Save received byte
@@ -86,11 +102,11 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	// Master has signalled Stop or Restart
 	case I2C_SLAVE_FINISH:
         // Copy data from write_buffer to memory
-        if (context->write_buffer != NULL) {
+        if ( (context->write_buffer != NULL) && (context->status_register == 0) ) {
             uint32_t size = MIN(context->max_transfer_size, context->transfer_size);
             memcpy(context->memory + context->memory_address, context->write_buffer, size);
         }
-        
+
         // Reset all values
         context->memory_address = 0;
 		context->byte_counter = 0;
@@ -109,6 +125,10 @@ void i2c_instrument_enable_write_buffer(i2c_inst_t *i2c, uint8_t *memory, uint32
 
     context->write_buffer = memory;
     context->max_transfer_size = memory_size;
+}
+
+status_register_t i2c_instrument_get_status(i2c_inst_t *i2c) {
+    return get_context(i2c)->status_register;
 }
 
 inline uint8_t bytes_needed(uint64_t n) {
@@ -150,4 +170,5 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
     context->transfer_size = 0;
     context->address_received = false;
     context->size_received = false;
+    context->status_register = 0;
 }

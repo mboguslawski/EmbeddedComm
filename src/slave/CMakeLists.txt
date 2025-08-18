@@ -4,6 +4,8 @@ add_library(rpxxxx_i2c_instrument STATIC
 
 target_include_directories(rpxxxx_i2c_instrument PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
+    ../common
+
 )
 
 target_link_libraries(rpxxxx_i2c_instrument PUBLIC
