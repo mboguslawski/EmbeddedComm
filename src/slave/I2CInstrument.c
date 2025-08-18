@@ -95,8 +95,20 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	// Master is requesting data
     case I2C_SLAVE_REQUEST:
         // Load from memory
-        i2c_write_byte_raw(i2c, context->memory[context->memory_address]);
-        context->memory_address++;
+        if (context->address_received) {
+            i2c_write_byte_raw(i2c, context->memory[context->memory_address]);
+            context->memory_address++;
+        } else {
+            // If no address specified, then send status register
+            volatile uint8_t *status_ptr = &context->status_register; // To cover possible status_register's size changes
+            for (uint32_t i = 0; i < sizeof(context->status_register); i++) {
+                i2c_write_byte_raw(i2c, *(status_ptr + i));
+            }
+
+            // Clear error flags
+            context->status_register = 0;
+        }
+
         break;
 	
 	// Master has signalled Stop or Restart
