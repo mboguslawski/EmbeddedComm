@@ -2,6 +2,8 @@
 
 struct i2c_context {
     uint8_t *memory;
+    uint8_t *write_buffer;
+    uint32_t max_transfer_size;
     uint32_t memory_size;
 	uint32_t memory_address;
     uint32_t transfer_size;
@@ -49,13 +51,27 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
             // 1. Bytes are coming after already receiving number of bytes specified by transfer_size
             // OR
             // 2. Write location points outside dedicated memory
-            if ( (context->byte_counter >= context->transfer_size) || (context->memory_address + context->byte_counter >= context->memory_size) ) {
+            // OR
+            // 3. If enabled, write buffer will overflow
+            if ( 
+                (context->byte_counter >= context->transfer_size) || 
+                (context->memory_address + context->byte_counter >= context->memory_size) ||
+                ( (context->write_buffer != NULL) && (context->byte_counter >= context->max_transfer_size) )
+            )
+            {
                 i2c_read_byte_raw(i2c);
                 break;
             }
 
-            // Save into memory
-            context->memory[context->memory_address + context->byte_counter] = i2c_read_byte_raw(i2c);
+            // Save received byte
+            if (context->write_buffer != NULL) {
+                // To write buffer if enabled
+                context->write_buffer[context->byte_counter] = i2c_read_byte_raw(i2c);
+            } else {
+                // Directly to memory, if write buffer disabled
+                context->memory[context->memory_address + context->byte_counter] = i2c_read_byte_raw(i2c);
+            }
+
             context->byte_counter++;
         }
         break;
@@ -69,6 +85,12 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	
 	// Master has signalled Stop or Restart
 	case I2C_SLAVE_FINISH:
+        // Copy data from write_buffer to memory
+        if (context->write_buffer != NULL) {
+            uint32_t size = MIN(context->max_transfer_size, context->transfer_size);
+            memcpy(context->memory + context->memory_address, context->write_buffer, size);
+        }
+        
         // Reset all values
         context->memory_address = 0;
 		context->byte_counter = 0;
@@ -80,6 +102,13 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	default:
         break;
     }
+}
+
+void i2c_instrument_enable_write_buffer(i2c_inst_t *i2c, uint8_t *memory, uint32_t memory_size) {
+    volatile struct i2c_context* context = get_context(i2c);
+
+    context->write_buffer = memory;
+    context->max_transfer_size = memory_size;
 }
 
 inline uint8_t bytes_needed(uint64_t n) {
@@ -113,6 +142,8 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
 	volatile struct i2c_context* context = get_context(i2c);
 	context->memory = memory;
 	context->memory_size = memory_size;
+    context->write_buffer = NULL;
+    context->max_transfer_size = 0;
 	context->address_size = bytes_needed(memory_size);
 	context->byte_counter = 0;
 	context->memory_address = 0;

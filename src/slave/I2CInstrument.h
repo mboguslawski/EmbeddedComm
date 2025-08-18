@@ -4,7 +4,9 @@
 #include <hardware/i2c.h>
 #include <hardware/gpio.h>
 #include <pico/i2c_slave.h>
+#include <string.h>
 
 void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_address, uint8_t *memory, uint32_t memory_size);
+void i2c_instrument_enable_write_buffer(i2c_inst_t *i2c, uint8_t *memory, uint32_t memory_size);
 
 #endif
