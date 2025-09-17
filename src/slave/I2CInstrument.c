@@ -1,7 +1,5 @@
 #include "I2CInstrument.h"
 
-#include <stdio.h>
-
 struct i2c_context {
     uint8_t *memory;
     uint8_t *write_buffer;
@@ -146,11 +144,9 @@ static inline uint8_t read_handler(struct i2c_context *context) {
     if ( (context->transfer_state == NEW_TRANSFER) || (context->transfer_state == DATA_RECEIVED) ) {
         uint8_t out_byte = context->status_register;
         context->status_register = 0x0;
-        printf("status\n");
         return out_byte;
     }
 
-    printf("memory\n");
     // Return byte from memory, increamenting byte counter, so the following byte will be returned next.
     return context->memory[context->memory_address + (context->byte_counter++)];
 }
