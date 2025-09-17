@@ -8,6 +8,7 @@ struct i2c_context {
 	volatile uint32_t memory_address;
     volatile uint32_t transfer_size;
 	volatile uint32_t byte_counter;
+    volatile uint8_t checksum;
     volatile uint8_t address_size;
     volatile uint8_t transfer_state;
     volatile uint8_t reset_pending;
@@ -19,6 +20,7 @@ struct i2c_context {
 #define ADDRESS_RECEIVED 0x1
 #define SIZE_RECEIVED 0x2
 #define DATA_RECEIVED 0x3
+#define CHECKSUM_RECEIVED 0x4
 
 static struct i2c_context i2c0_context, i2c1_context;
 
@@ -103,6 +105,16 @@ static inline void reset_context(struct i2c_context *context) {
     context->transfer_size = 0;
     context->transfer_state = NEW_TRANSFER;
     context->reset_pending = false;
+    context->checksum = 0;
+}
+
+// Compare received checksum with calculated and set error flag in status register if thoose do not match.
+static inline void check_checksum(struct i2c_context *context, uint8_t checksum_byte) {
+    if (context->checksum != checksum_byte) {
+        context->status_register |= I2C_O_ERR_DATA_CORRUPTED;
+    }
+
+    context->transfer_state = CHECKSUM_RECEIVED;
 }
 
 // Handle all logic related to slave receiving byte from master.
@@ -115,6 +127,11 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
     // Discard byte if any error was detected
     if (context->status_register != 0) {
         return;
+    }
+
+    // Include byte in checksum calculation (except received checksum byte).
+    if (context->transfer_state != DATA_RECEIVED) {
+        context->checksum = calc_checksum_it(context->checksum, received_byte);
     }
 
     // Decide where to save receivied byte according to current state.
@@ -133,6 +150,10 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
         break;
 
     case DATA_RECEIVED:
+        check_checksum(context, received_byte);
+        break;
+        
+    case CHECKSUM_RECEIVED:
     default:
         context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
         break;
@@ -140,15 +161,32 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 }
 
 static inline uint8_t read_handler(struct i2c_context *context) {
+    uint8_t out_byte = 0x0;
+
     // If read address not received, return status register
-    if ( (context->transfer_state == NEW_TRANSFER) || (context->transfer_state == DATA_RECEIVED) ) {
-        uint8_t out_byte = context->status_register;
+    if ( (context->transfer_state == NEW_TRANSFER) || (context->transfer_state == CHECKSUM_RECEIVED) ) {
+        out_byte = context->status_register;
         context->status_register = 0x0;
         return out_byte;
     }
 
-    // Return byte from memory, increamenting byte counter, so the following byte will be returned next.
-    return context->memory[context->memory_address + (context->byte_counter++)];
+    if (context->transfer_state == SIZE_RECEIVED) {
+        // Return byte from memory, increamenting byte counter, so the following byte will be returned next.
+        out_byte = context->memory[context->memory_address + context->byte_counter];
+        context->checksum = calc_checksum_it(context->checksum, out_byte);
+        context->byte_counter++;
+
+        if (context->byte_counter == context->transfer_size) {
+            context->transfer_state = DATA_RECEIVED;
+        }
+    
+    } else {
+        // Send checksum byte after all data has been send out
+        out_byte = context->checksum;
+        context->transfer_state = CHECKSUM_RECEIVED;
+    }
+
+    return out_byte;
 }
 
 // Handles all i2c communication logic on slave side.
@@ -229,4 +267,5 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
     context->transfer_state = NEW_TRANSFER;
     context->status_register = 0;
     context->reset_pending = false;
+    context->checksum = 0;
 }
