@@ -1,5 +1,7 @@
 #include "I2CInstrument.h"
 
+#include <stdio.h>
+
 struct i2c_context {
     uint8_t *memory;
     uint8_t *write_buffer;
@@ -139,6 +141,20 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
     }
 }
 
+static inline uint8_t read_handler(struct i2c_context *context) {
+    // If read address not received, return status register
+    if ( (context->transfer_state == NEW_TRANSFER) || (context->transfer_state == DATA_RECEIVED) ) {
+        uint8_t out_byte = context->status_register;
+        context->status_register = 0x0;
+        printf("status\n");
+        return out_byte;
+    }
+
+    printf("memory\n");
+    // Return byte from memory, increamenting byte counter, so the following byte will be returned next.
+    return context->memory[context->memory_address + (context->byte_counter++)];
+}
+
 // Handles all i2c communication logic on slave side.
 // Is executed as interrupt routine.
 static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
@@ -154,7 +170,7 @@ static void i2c_instrument_handler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	
 	// Master is requesting data
     case I2C_SLAVE_REQUEST:
-        i2c_write_byte_raw(i2c, 0x0);
+        i2c_write_byte_raw(i2c, read_handler(context));
         break;
 	
 	// Master has signalled Stop or Restart
