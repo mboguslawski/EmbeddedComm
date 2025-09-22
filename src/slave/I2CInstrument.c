@@ -1,5 +1,5 @@
 #include "I2CInstrument.h"
-#include <stdio.h>
+
 struct i2c_context {
     uint8_t *memory;
     uint8_t *write_buffer;
@@ -189,8 +189,6 @@ static inline void preapere_read(struct i2c_context *context) {
         break;
 
     default:
-        printf("err read_prep\n");
-
         context->status_register |= I2C_O_ERR_INVALID_FLOW;
         break;
     }
@@ -245,25 +243,20 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 
     // Send dummy byte if error was detected.
     if (context->status_register != 0) {
-        printf("error %u\n", context->status_register);
         return out_byte;
     }
 
     switch (context->transfer_state) {
 
     case SENDING_STATUS_REG:
-        printf("status\n");
-
         out_byte = read_status_reg(context);
         break;
     
     case SENDING_DATA:
-        printf("data\n");
         out_byte = read_memory(context);
         break;
     
     case SENDING_CHECKSUM:
-    printf("checksum\n");
         out_byte = read_checksum(context);
         break;
 
@@ -272,8 +265,6 @@ static inline uint8_t read_handler(struct i2c_context *context) {
         break;
 
     default:
-        printf("err read_handler\n");
-
         context->status_register |= I2C_O_ERR_INVALID_FLOW;
         break;
     }
