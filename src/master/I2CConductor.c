@@ -61,6 +61,15 @@ int i2c_conductor_read(i2c_instrument_info_t *instrument, uint32_t memory_addres
 }
 
 int i2c_conductor_read_instrument_status(i2c_instrument_info_t *instrument, status_register_t *status) {
-    status_register_t ret = 0;
-    return i2c_read_blocking(instrument->i2c, instrument->i2c_address, status, 1, false);
+    uint8_t read_buffer[2];
+    
+    int ret = i2c_read_blocking(instrument->i2c, instrument->i2c_address, read_buffer, 2, false);
+
+    if (calc_checksum_it(0, read_buffer[0]) != read_buffer[1]) {
+        (*status) = I2C_O_ERR_DATA_CORRUPTED;
+    } else {
+        *status = read_buffer[0]; 
+    }
+
+    return ret;
 }

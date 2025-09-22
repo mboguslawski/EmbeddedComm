@@ -1,5 +1,5 @@
 #include "I2CInstrument.h"
-
+#include <stdio.h>
 struct i2c_context {
     uint8_t *memory;
     uint8_t *write_buffer;
@@ -165,40 +165,117 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
     }
 }
 
+// Distinguish between memory read and status register read request
+// set context's values accordingly.
+static inline void preapere_read(struct i2c_context *context) {
+    
+    switch (context->transfer_state) {
+    
+    case TRANSFER_FINISHED:
+        context->transfer_state = SENDING_STATUS_REG;
+        context->transfer_size = sizeof(status_register_t);
+        context->byte_counter = 0;
+        context->checksum = 0;
+        break;
+    
+    case RECEIVING_DATA:
+        if (context->byte_counter != 0) {
+            context->status_register |= I2C_O_ERR_INVALID_FLOW;
+            break;
+        }
+            
+        context->transfer_state = SENDING_DATA;
+        context->byte_counter = 0;
+        break;
+
+    default:
+        printf("err read_prep\n");
+
+        context->status_register |= I2C_O_ERR_INVALID_FLOW;
+        break;
+    }
+}
+
+static inline uint8_t read_status_reg(struct i2c_context *context) {
+    volatile uint8_t *reg_ptr = &context->status_register;
+    uint8_t out_byte = reg_ptr[context->byte_counter];
+    
+    context->checksum = calc_checksum_it(context->checksum, out_byte);
+    context->byte_counter++;
+
+    if (context->byte_counter == context->transfer_size) {
+        context->byte_counter = 0;
+        context->transfer_state = SENDING_CHECKSUM;
+    }
+
+    return out_byte;
+}
+
+static inline uint8_t read_memory(struct i2c_context *context) {
+    uint8_t out_byte = context->memory[context->memory_address + context->byte_counter];
+
+    context->checksum = calc_checksum_it(context->checksum, out_byte);
+    context->byte_counter++;
+
+    if (context->byte_counter == context->transfer_size) {
+        context->byte_counter = 0;
+        context->transfer_state = SENDING_CHECKSUM;
+    }
+
+    return out_byte;
+}
+
+static inline uint8_t read_checksum(struct i2c_context *context) {
+    context->transfer_state = TRANSFER_FINISHED;
+    return context->checksum;
+}
+
 static inline uint8_t read_handler(struct i2c_context *context) {
     uint8_t out_byte = 0x0;
+    
+    // Current transfer state is not set to sending data
+    // so try to change it if possible.
+    if ( 
+        (context->transfer_state != SENDING_CHECKSUM) && 
+        (context->transfer_state != SENDING_DATA) && 
+        (context->transfer_state != SENDING_STATUS_REG)
+    ) {
+        preapere_read(context);
+    }
 
-    // If read address not received, return status register
-    if (context->transfer_state == TRANSFER_FINISHED) {
-
-        context->transfer_state = SENDING_STATUS_REG;        
-        out_byte = context->status_register;
-        context->status_register = 0x0;
-
-        context->transfer_state = TRANSFER_FINISHED;
-
+    // Send dummy byte if error was detected.
+    if (context->status_register != 0) {
+        printf("error %u\n", context->status_register);
         return out_byte;
     }
 
-    if (context->transfer_state == RECEIVING_DATA || context->transfer_state == SENDING_DATA) {
-        context->transfer_state = SENDING_DATA;
+    switch (context->transfer_state) {
 
-        // Return byte from memory, increamenting byte counter, so the following byte will be returned next.
-        out_byte = context->memory[context->memory_address + context->byte_counter];
-        context->checksum = calc_checksum_it(context->checksum, out_byte);
-        context->byte_counter++;
+    case SENDING_STATUS_REG:
+        printf("status\n");
 
-        if (context->byte_counter == context->transfer_size) {
-            context->transfer_state = SENDING_CHECKSUM;
-        }
-        
-        return out_byte;
-    }
+        out_byte = read_status_reg(context);
+        break;
+    
+    case SENDING_DATA:
+        printf("data\n");
+        out_byte = read_memory(context);
+        break;
+    
+    case SENDING_CHECKSUM:
+    printf("checksum\n");
+        out_byte = read_checksum(context);
+        break;
 
-    if (context->transfer_state == SENDING_CHECKSUM) {
-        // Send checksum byte after all data has been send out
-        out_byte = context->checksum;
-        context->transfer_state = TRANSFER_FINISHED;
+    case TRANSFER_FINISHED:
+        context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
+        break;
+
+    default:
+        printf("err read_handler\n");
+
+        context->status_register |= I2C_O_ERR_INVALID_FLOW;
+        break;
     }
 
     return out_byte;
