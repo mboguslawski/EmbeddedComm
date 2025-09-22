@@ -15,16 +15,16 @@ struct i2c_context {
 };
 
 // Possible transfer states
-#define STATE_IDLE 0x00
-#define RECEIVING_ADDRESS 0x01
-#define RECEIVING_TSIZE 0x02
-#define RECEIVING_DATA 0x03
-#define RECEIVING_CHECKSUM 0x04
-#define SENDING_DATA 0x05
-#define SENDING_STATUS_REG 0x06
-#define SENDING_CHECKSUM 0x07
-#define WRITE_FINISHED 0x08
-#define READ_FINISHED 0x09
+#define STATE_IDLE              0x00    // Idle, ready for new transfer
+#define STATE_R_ADDRESS         0x01    // Receiving memory address
+#define STATE_R_TRANSFER_SIZE   0x02    // Receiving transfer size
+#define STATE_R_DATA            0x03    // Receiving data bytes
+#define STATE_R_CHECKSUM        0x04    // Receiving data checksum
+#define STATE_R_FINISH          0x05    // Finished receiving
+#define STATE_T_DATA            0x06    // Transmitting data
+#define STATE_T_STATUS          0x07    // Transmitting status
+#define STATE_T_CHECKSUM        0x08    // Transmitting checksum
+#define STATE_T_FINISH          0x09    // Finished transmitting
 
 static struct i2c_context i2c0_context, i2c1_context;
 
@@ -42,7 +42,7 @@ static inline void write_memory_address(struct i2c_context *context, uint8_t byt
 
     // Move to the next state if all address bytes were collected.
     if (context->byte_counter == context->address_size) {
-        context->transfer_state = RECEIVING_TSIZE;
+        context->transfer_state = STATE_R_TRANSFER_SIZE;
         context->byte_counter = 0;
 
         // Check address
@@ -62,7 +62,7 @@ static inline void write_transfer_size(struct i2c_context *context, uint8_t byte
     
     // Move to the next state if all size bytes were collected (address already received).
     if (context->byte_counter == context->address_size) {
-        context->transfer_state = RECEIVING_DATA;
+        context->transfer_state = STATE_R_DATA;
         context->byte_counter = 0;
 
         // Check if declared transfer size does not exceed write_buffer size (if enabled)
@@ -91,7 +91,7 @@ static inline void write_memory(struct i2c_context *context, uint8_t byte) {
     context->byte_counter++;
 
     if (context->byte_counter == context->transfer_size) {
-        context->transfer_state = RECEIVING_CHECKSUM;
+        context->transfer_state = STATE_R_CHECKSUM;
     }
 }
 
@@ -99,7 +99,7 @@ static inline void write_memory(struct i2c_context *context, uint8_t byte) {
 static inline void reset_context(struct i2c_context *context) {
     
     // Copy data from write_buffer to memory
-    if ( (context->transfer_state == WRITE_FINISHED) && (context->write_buffer != NULL) && (context->status_register == 0) ) {
+    if ( (context->transfer_state == STATE_T_FINISH) && (context->write_buffer != NULL) && (context->status_register == 0) ) {
         uint32_t size = MIN(context->max_transfer_size, context->transfer_size);
         memcpy(context->memory + context->memory_address, context->write_buffer, size);
     }
@@ -118,7 +118,7 @@ static inline void check_checksum(struct i2c_context *context, uint8_t checksum_
         context->status_register |= I2C_O_ERR_DATA_CORRUPTED;
     }
 
-    context->transfer_state = WRITE_FINISHED;
+    context->transfer_state = STATE_T_FINISH;
 }
 
 // Handle all logic related to slave receiving byte from master.
@@ -129,7 +129,7 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
     }
 
     // Include byte in checksum calculation (except received checksum byte).
-    if (context->transfer_state != RECEIVING_CHECKSUM) {
+    if (context->transfer_state != STATE_R_CHECKSUM) {
         context->checksum = calc_checksum_it(context->checksum, received_byte);
     }
 
@@ -137,26 +137,26 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
     switch (context->transfer_state) {
     
     case STATE_IDLE:
-        context->transfer_state = RECEIVING_ADDRESS;
+        context->transfer_state = STATE_R_ADDRESS;
         // No break, execute code to receive address
 
-    case RECEIVING_ADDRESS:
+    case STATE_R_ADDRESS:
         write_memory_address(context, received_byte);
         break;
 
-    case RECEIVING_TSIZE:
+    case STATE_R_TRANSFER_SIZE:
         write_transfer_size(context, received_byte);
         break;
     
-    case RECEIVING_DATA:
+    case STATE_R_DATA:
         write_memory(context, received_byte);
         break;
 
-    case RECEIVING_CHECKSUM:
+    case STATE_R_CHECKSUM:
         check_checksum(context, received_byte);
         break;
         
-    case WRITE_FINISHED:
+    case STATE_T_FINISH:
         context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
         break;
 
@@ -175,7 +175,7 @@ static inline uint8_t read_status_reg(struct i2c_context *context) {
 
     if (context->byte_counter == context->transfer_size) {
         context->byte_counter = 0;
-        context->transfer_state = SENDING_CHECKSUM;
+        context->transfer_state = STATE_T_CHECKSUM;
     }
 
     return out_byte;
@@ -189,14 +189,14 @@ static inline uint8_t read_memory(struct i2c_context *context) {
 
     if (context->byte_counter == context->transfer_size) {
         context->byte_counter = 0;
-        context->transfer_state = SENDING_CHECKSUM;
+        context->transfer_state = STATE_T_CHECKSUM;
     }
 
     return out_byte;
 }
 
 static inline uint8_t read_checksum(struct i2c_context *context) {
-    context->transfer_state = READ_FINISHED;
+    context->transfer_state = STATE_R_FINISH;
     return context->checksum;
 }
 
@@ -211,23 +211,23 @@ static inline uint8_t read_handler(struct i2c_context *context) {
     switch (context->transfer_state) {
 
     case STATE_IDLE:
-        context->transfer_state = SENDING_STATUS_REG;
+        context->transfer_state = STATE_T_STATUS;
         context->transfer_size = 1;
         // No break, execute reading status register code
 
-    case SENDING_STATUS_REG:
+    case STATE_T_STATUS:
         out_byte = read_status_reg(context);
         break;
     
-    case SENDING_DATA:
+    case STATE_T_DATA:
         out_byte = read_memory(context);
         break;
     
-    case SENDING_CHECKSUM:
+    case STATE_T_CHECKSUM:
         out_byte = read_checksum(context);
         break;
 
-    case READ_FINISHED:
+    case STATE_R_FINISH:
         context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
         break;
 
@@ -240,13 +240,13 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 }
 
 static inline void handle_stop(struct i2c_context *context) {
-    if (context->transfer_state == WRITE_FINISHED || context->transfer_state == READ_FINISHED) {
+    if (context->transfer_state == STATE_T_FINISH || context->transfer_state == STATE_R_FINISH) {
         reset_context(context);
         return;
     }
 
-    if (context->transfer_state == RECEIVING_DATA && context->byte_counter == 0) {
-        context->transfer_state = SENDING_DATA;
+    if (context->transfer_state == STATE_R_DATA && context->byte_counter == 0) {
+        context->transfer_state = STATE_T_DATA;
         return;
     }
 
