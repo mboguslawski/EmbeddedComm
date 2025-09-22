@@ -156,8 +156,11 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
         break;
         
     case TRANSFER_FINISHED:
-    default:
         context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
+        break;
+
+    default:
+        context->status_register |= I2C_O_ERR_INVALID_FLOW;
         break;
     }
 }

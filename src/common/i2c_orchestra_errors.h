@@ -5,6 +5,7 @@
 #define I2C_O_ERR_SIZE_MISMATCH 0x2
 #define I2C_O_ERR_WBUFFER_OVERFLOW 0x4
 #define I2C_O_ERR_DATA_CORRUPTED 0x8
+#define I2C_O_ERR_INVALID_FLOW 0x10
 
 typedef uint8_t status_register_t;
 
