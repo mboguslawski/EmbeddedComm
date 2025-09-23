@@ -1,5 +1,20 @@
 #include "I2CInstrument.h"
 
+// Possible transfer states
+typedef enum {
+	STATE_IDLE,             // Idle, ready for new transfer
+	STATE_R_ADDRESS,        // Receiving memory address
+	STATE_R_TRANSFER_SIZE,  // Receiving transfer size
+	STATE_R_DATA,           // Receiving data bytes
+	STATE_R_CHECKSUM,      	// Receiving data checksum
+	STATE_R_FINISH,         // Finished receiving
+	STATE_T_DATA,           // Transmitting data
+	STATE_T_STATUS,         // Transmitting status
+	STATE_T_CHECKSUM,       // Transmitting checksum
+	STATE_T_FINISH,         // Finished transmitting
+	STATE_ERROR,			// Error occurred during transfer
+} transfer_state_t;
+
 struct i2c_context {
 	uint8_t *memory;
 	uint8_t *write_buffer;
@@ -10,22 +25,9 @@ struct i2c_context {
 	volatile uint32_t byte_counter;
 	volatile uint8_t checksum;
 	volatile uint8_t address_size;
-	volatile uint8_t transfer_state;
+	volatile transfer_state_t transfer_state;
 	volatile status_register_t status_register;
 };
-
-// Possible transfer states
-#define STATE_IDLE              0x00    // Idle, ready for new transfer
-#define STATE_R_ADDRESS         0x01    // Receiving memory address
-#define STATE_R_TRANSFER_SIZE   0x02    // Receiving transfer size
-#define STATE_R_DATA            0x03    // Receiving data bytes
-#define STATE_R_CHECKSUM        0x04    // Receiving data checksum
-#define STATE_R_FINISH          0x05    // Finished receiving
-#define STATE_T_DATA            0x06    // Transmitting data
-#define STATE_T_STATUS          0x07    // Transmitting status
-#define STATE_T_CHECKSUM        0x08    // Transmitting checksum
-#define STATE_T_FINISH          0x09    // Finished transmitting
-#define STATE_ERROR				0x0A 	// Error occurred during transfer
 
 static struct i2c_context i2c0_context, i2c1_context;
 
