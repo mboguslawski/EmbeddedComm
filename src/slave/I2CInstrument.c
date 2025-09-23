@@ -25,11 +25,24 @@ struct i2c_context {
 #define STATE_T_STATUS          0x07    // Transmitting status
 #define STATE_T_CHECKSUM        0x08    // Transmitting checksum
 #define STATE_T_FINISH          0x09    // Finished transmitting
+#define STATE_ERROR				0x0A 	// Error occurred during transfer
 
 static struct i2c_context i2c0_context, i2c1_context;
 
 static inline struct i2c_context *get_context(i2c_inst_t *i2c) {
 	return (i2c == i2c0) ? &i2c0_context : &i2c1_context;
+}
+
+// Set given error flag in status register and change tranfser state to STATE_ERROR 
+static inline void set_error_flag(struct i2c_context *context, status_register_t error) {
+	context->status_register |= error;
+	context->transfer_state = STATE_ERROR;
+} 
+
+// Clear all error flag
+// This function does not change transfer state
+static inline void clear_errors(struct i2c_context *context) {
+	context->status_register = I2C_O_OK;
 }
 
 // Writes byte to context->memory_address.
@@ -47,7 +60,7 @@ static inline void write_memory_address(struct i2c_context *context, uint8_t byt
 
 		// Check address
 		if (context->memory_address >= context->memory_size) {
-			context->status_register |= I2C_O_ERR_INVALID_ADDR;
+			set_error_flag(context, I2C_O_ERR_INVALID_ADDR);
 		}
 	}
 }
@@ -67,12 +80,12 @@ static inline void write_transfer_size(struct i2c_context *context, uint8_t byte
 
 		// Check if declared transfer size does not exceed write_buffer size (if enabled)
 		if ( (context->write_buffer != NULL) && (context->transfer_size > context->max_transfer_size) ) {
-			context->status_register |= I2C_O_ERR_WBUFFER_OVERFLOW;
+			set_error_flag(context, I2C_O_ERR_WBUFFER_OVERFLOW);
 		}
 
 		// Check if data will not overflow memory
 		if (context->memory_address + context->transfer_size >= context->memory_size) {
-			context->status_register |= I2C_O_ERR_INVALID_ADDR;
+			set_error_flag(context, I2C_O_ERR_INVALID_ADDR);
 		}
 	}
 }
@@ -115,7 +128,7 @@ static inline void reset_context(struct i2c_context *context) {
 // Compare received checksum with calculated and set error flag in status register if thoose do not match.
 static inline void check_checksum(struct i2c_context *context, uint8_t checksum_byte) {
 	if (context->checksum != checksum_byte) {
-		context->status_register |= I2C_O_ERR_DATA_CORRUPTED;
+		set_error_flag(context, I2C_O_ERR_DATA_CORRUPTED);
 	}
 
 	context->transfer_state = STATE_T_FINISH;
@@ -157,11 +170,11 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 		break;
 		
 	case STATE_T_FINISH:
-		context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
+		set_error_flag(context, I2C_O_ERR_SIZE_MISMATCH);
 		break;
 
 	default:
-		context->status_register |= I2C_O_ERR_INVALID_FLOW;
+		set_error_flag(context, I2C_O_ERR_INVALID_FLOW);
 		break;
 	}
 }
@@ -175,6 +188,7 @@ static inline uint8_t read_status_reg(struct i2c_context *context) {
 
 	if (context->byte_counter == context->transfer_size) {
 		context->byte_counter = 0;
+		clear_errors(context); // Clear any errors in status register as master is now aware of them.
 		context->transfer_state = STATE_T_CHECKSUM;
 	}
 
@@ -228,11 +242,11 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 		break;
 
 	case STATE_R_FINISH:
-		context->status_register |= I2C_O_ERR_SIZE_MISMATCH;
+		set_error_flag(context, I2C_O_ERR_SIZE_MISMATCH);
 		break;
 
 	default:
-		context->status_register |= I2C_O_ERR_INVALID_FLOW;
+		set_error_flag(context, I2C_O_ERR_INVALID_FLOW);
 		break;
 	}
 
@@ -250,7 +264,7 @@ static inline void handle_stop(struct i2c_context *context) {
 		return;
 	}
 
-	context->status_register |= I2C_O_ERR_INVALID_FLOW;
+	set_error_flag(context, I2C_O_ERR_INVALID_FLOW);
 }
 
 // Handles all i2c communication logic on slave side.
@@ -330,6 +344,6 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
 	context->memory_address = 0;
 	context->transfer_size = 0;
 	context->transfer_state = STATE_IDLE;
-	context->status_register = 0;
+	clear_errors(context);
 	context->checksum = 0;
 }
