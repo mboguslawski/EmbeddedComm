@@ -33,16 +33,33 @@ static inline struct i2c_context *get_context(i2c_inst_t *i2c) {
 	return (i2c == i2c0) ? &i2c0_context : &i2c1_context;
 }
 
+// Resets context after i2c transfer. Needs to be done before new transfer handling.
+static inline void reset_context(struct i2c_context *context) {
+	
+	// Copy data from write_buffer to memory
+	if ( (context->transfer_state == STATE_T_FINISH) && (context->write_buffer != NULL) && (context->status_register == 0) ) {
+		uint32_t size = MIN(context->max_transfer_size, context->transfer_size);
+		memcpy(context->memory + context->memory_address, context->write_buffer, size);
+	}
+
+	// Reset all values
+	context->memory_address = 0;
+	context->byte_counter = 0;
+	context->transfer_size = 0;
+	context->transfer_state = STATE_IDLE;
+	context->checksum = 0;
+}
+
 // Set given error flag in status register and change tranfser state to STATE_ERROR 
 static inline void set_error_flag(struct i2c_context *context, status_register_t error) {
 	context->status_register |= error;
 	context->transfer_state = STATE_ERROR;
 } 
 
-// Clear all error flag
-// This function does not change transfer state
+// Clear all error flag and reset context to STATE_IDLE
 static inline void clear_errors(struct i2c_context *context) {
 	context->status_register = I2C_O_OK;
+	reset_context(context);
 }
 
 // Writes byte to context->memory_address.
@@ -108,23 +125,6 @@ static inline void write_memory(struct i2c_context *context, uint8_t byte) {
 	}
 }
 
-// Resets context after i2c transfer. Needs to be done before new transfer handling.
-static inline void reset_context(struct i2c_context *context) {
-	
-	// Copy data from write_buffer to memory
-	if ( (context->transfer_state == STATE_T_FINISH) && (context->write_buffer != NULL) && (context->status_register == 0) ) {
-		uint32_t size = MIN(context->max_transfer_size, context->transfer_size);
-		memcpy(context->memory + context->memory_address, context->write_buffer, size);
-	}
-
-	// Reset all values
-	context->memory_address = 0;
-	context->byte_counter = 0;
-	context->transfer_size = 0;
-	context->transfer_state = STATE_IDLE;
-	context->checksum = 0;
-}
-
 // Compare received checksum with calculated and set error flag in status register if thoose do not match.
 static inline void check_checksum(struct i2c_context *context, uint8_t checksum_byte) {
 	if (context->checksum != checksum_byte) {
@@ -136,11 +136,6 @@ static inline void check_checksum(struct i2c_context *context, uint8_t checksum_
 
 // Handle all logic related to slave receiving byte from master.
 static inline void write_handler(struct i2c_context *context, uint8_t received_byte) {
-	// Discard byte if any error was detected
-	if (context->status_register != 0) {
-		return;
-	}
-
 	// Include byte in checksum calculation (except received checksum byte).
 	if (context->transfer_state != STATE_R_CHECKSUM) {
 		context->checksum = calc_checksum_it(context->checksum, received_byte);
@@ -149,6 +144,10 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 	// Decide where to save receivied byte according to current state.
 	switch (context->transfer_state) {
 	
+	case STATE_ERROR:
+		// Do not process byte if any error flag is set.
+		break;
+
 	case STATE_IDLE:
 		context->transfer_state = STATE_R_ADDRESS;
 		// No break, execute code to receive address
@@ -217,12 +216,11 @@ static inline uint8_t read_checksum(struct i2c_context *context) {
 static inline uint8_t read_handler(struct i2c_context *context) {
 	uint8_t out_byte = 0x0;
 
-	// Send dummy byte if error was detected.
-	if (context->status_register != 0) {
-		return out_byte;
-	}
-
 	switch (context->transfer_state) {
+
+	case STATE_ERROR:
+		// Send dummy byte if any error flag is set.
+		return out_byte; // 0x0
 
 	case STATE_IDLE:
 		context->transfer_state = STATE_T_STATUS;
