@@ -70,23 +70,18 @@ static inline void change_transfer_state(struct i2c_context *context, transfer_s
 	context->transfer_state = new_state;
 }
 
-// Writes byte to context->memory_address.
-// Sets context->address_received flag, resets context->byte_counter 
-// and sets error flag in status register if all address bytes received.
-static inline void write_memory_address(struct i2c_context *context, uint8_t byte) {
+// Copies first four bytes from wbuffer to context->memory_address
+// and sets error is address is not valid.
+static inline void write_memory_address(struct i2c_context *context) {
 	// Receive memory address (can be multiple bytes long)
-	context->memory_address |= (uint32_t)byte << (context->byte_counter * 8 );
-	context->byte_counter++;
+	uint32_t new_address = (uint32_t*)context->write_buffer[0];
 
-	// Move to the next state if all address bytes were collected.
-	if (context->byte_counter == ADDRESS_SIZE) {
-		change_transfer_state(context, STATE_R_DATA);
-
-		// Check address
-		if (context->memory_address >= context->memory_size) {
-			set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
-		}
+	if (new_address >= context->memory_size) {
+		set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
+		return;
 	}
+
+	context->memory_address = new_address;
 }
 
 // Writes received byte to memory/write buffer and checks for errors.
@@ -104,22 +99,18 @@ static inline void write_buffer(struct i2c_context *context, uint8_t byte) {
 // Handle all logic related to slave receiving byte from master.
 static inline void write_handler(struct i2c_context *context, uint8_t received_byte) {
 	// Decide where to save receivied byte according to current state.
-	switch (context->transfer_state) {
-	
-	case STATE_IDLE:
+	if (context->transfer_state == STATE_IDLE) {
 		change_transfer_state(context, STATE_R_ADDRESS);
-		// No break, execute code to receive address
+	}
 
-	case STATE_R_ADDRESS:
-		write_memory_address(context, received_byte);
-		break;
-	
-	case STATE_R_DATA:
-		write_buffer(context, received_byte);
-		break;
+	write_buffer(context, received_byte);
 
-	default:
-		break;
+	// Check if memory address is fully received in buffer
+	if ( (context->transfer_state == STATE_R_ADDRESS) && (context->byte_counter == ADDRESS_SIZE)) {
+		
+		// Copy and check address from buffer
+		write_memory_address(context);
+		change_transfer_state(context, STATE_R_DATA);
 	}
 }
 
