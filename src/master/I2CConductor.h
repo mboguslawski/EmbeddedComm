@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "i2c_orchestra_errors.h"
+#include "i2c_orchestra_checksum.h"
 
 typedef struct {
 	uint8_t i2c_address;

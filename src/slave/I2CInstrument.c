@@ -19,6 +19,7 @@ struct i2c_context {
 	volatile uint32_t memory_address;
 	volatile uint32_t byte_counter;
 	volatile transfer_state_t transfer_state;
+	volatile uint8_t r_checksum;
 };
 
 static struct i2c_context i2c0_context, i2c1_context;
@@ -27,42 +28,25 @@ static inline struct i2c_context *get_context(i2c_inst_t *i2c) {
 	return (i2c == i2c0) ? &i2c0_context : &i2c1_context;
 }
 
-// Move received data from master to memory.
-static inline void write_memory(struct i2c_context *context) {
-
-	// Copy data from write_buffer to memory
-	if ( (context->transfer_state == STATE_R_DATA) && ((*context->status_byte) == I2C_O_OK) ) {
-		memcpy(context->memory + context->memory_address, context->write_buffer, context->byte_counter);
-	}
-}
-
 // Set given error flag in status register
 static inline void set_error_flag(struct i2c_context *context, uint8_t error) {
 	(*context->status_byte) |= error;
 } 
 
-static inline void change_transfer_state(struct i2c_context *context, transfer_state_t new_state) {
-	switch (new_state) {
-	
-	case STATE_IDLE:
-		write_memory(context);
-		break;
+// Move received data from master to memory.
+static inline void write_memory(struct i2c_context *context) {
 
-	case STATE_R_ADDRESS:
-		context->memory_address = 0;
-		context->byte_counter = 0;
-		break;
-	
-	case STATE_R_DATA:
-		context->byte_counter = 0;
-		break;
-
-	case STATE_T_DATA:
-		context->byte_counter = 0;
-		break;
+	// Copy data from write_buffer to memory
+	if ( (context->transfer_state == STATE_R_DATA) && ((*context->status_byte) == I2C_O_OK) ) {
+		// Check data integrity (compare checksum)
+		// Last byte send by master is checksum
+		if (context->r_checksum != context->write_buffer[context->byte_counter-1]) {
+			set_error_flag(context, I2C_O_ERR_DATA_CORRUPTED);
+			return;
+		}
+		
+		memcpy(context->memory + context->memory_address, context->write_buffer, context->byte_counter-1);
 	}
-
-	context->transfer_state = new_state;
 }
 
 // Copies first four bytes from wbuffer to context->memory_address
@@ -79,6 +63,32 @@ static inline void write_memory_address(struct i2c_context *context) {
 	context->memory_address = new_address;
 }
 
+static inline void change_transfer_state(struct i2c_context *context, transfer_state_t new_state) {
+	switch (new_state) {
+	
+	case STATE_IDLE:
+		write_memory(context);
+		break;
+
+	case STATE_R_ADDRESS:
+		context->memory_address = 0;
+		context->byte_counter = 0;
+		break;
+	
+	case STATE_R_DATA:
+		context->r_checksum = calc_checksum(context->write_buffer, ADDRESS_SIZE);
+		write_memory_address(context);
+		context->byte_counter = 0;
+		break;
+
+	case STATE_T_DATA:
+		context->byte_counter = 0;
+		break;
+	}
+
+	context->transfer_state = new_state;
+}
+
 // Writes received byte to memory/write buffer and checks for errors.
 static inline void write_buffer(struct i2c_context *context, uint8_t byte) {
 	
@@ -89,6 +99,13 @@ static inline void write_buffer(struct i2c_context *context, uint8_t byte) {
 	}
 
 	context->write_buffer[context->byte_counter] = byte;
+
+	// As last received byte will be checksum, calculate checksum from previously received byte,
+	// so the received checksum itself is not used in calculating checksum on slave's side.
+	if ( (context->transfer_state == STATE_R_DATA) && (context->byte_counter != 0)) {
+		context->r_checksum = calc_checksum_it(context->r_checksum, context->write_buffer[context->byte_counter-1]);
+	}
+
 	context->byte_counter++;
 }
 
@@ -103,9 +120,6 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 
 	// Check if memory address is fully received in buffer
 	if ( (context->transfer_state == STATE_R_ADDRESS) && (context->byte_counter == ADDRESS_SIZE)) {
-		
-		// Copy and check address from buffer
-		write_memory_address(context);
 		change_transfer_state(context, STATE_R_DATA);
 	}
 }
@@ -214,6 +228,7 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
 	context->write_buffer = mem_buffer;
 	context->max_transfer_size = mem_buffer_size;
 	context->status_byte = memory + 0;
+	context->r_checksum = 0;
 
 	(*context->status_byte) = I2C_O_OK;
 	change_transfer_state(context, STATE_IDLE);
