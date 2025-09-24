@@ -31,20 +31,15 @@ static inline struct i2c_context *get_context(i2c_inst_t *i2c) {
 static inline void write_memory(struct i2c_context *context) {
 
 	// Copy data from write_buffer to memory
-	if ( (context->transfer_state == STATE_R_DATA) && ((*context->status_byte) == 0) ) {
+	if ( (context->transfer_state == STATE_R_DATA) && ((*context->status_byte) == I2C_O_OK) ) {
 		memcpy(context->memory + context->memory_address, context->write_buffer, context->byte_counter);
 	}
 }
 
 // Set given error flag in status register
 static inline void set_error_flag(struct i2c_context *context, uint8_t error) {
-	*context->status_byte |= error;
+	(*context->status_byte) |= error;
 } 
-
-// Clear all error flag
-static inline void clear_errors(struct i2c_context *context) {
-	*context->status_byte = I2C_O_OK;
-}
 
 static inline void change_transfer_state(struct i2c_context *context, transfer_state_t new_state) {
 	switch (new_state) {
@@ -74,7 +69,7 @@ static inline void change_transfer_state(struct i2c_context *context, transfer_s
 // and sets error is address is not valid.
 static inline void write_memory_address(struct i2c_context *context) {
 	// Receive memory address (can be multiple bytes long)
-	uint32_t new_address = (uint32_t*)context->write_buffer[0];
+	uint32_t new_address = *((uint32_t*)context->write_buffer);
 
 	if (new_address >= context->memory_size) {
 		set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
@@ -117,25 +112,22 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 static inline uint8_t read_handler(struct i2c_context *context) {
 	uint8_t out_byte = 0x0;
 
-	switch (context->transfer_state) {
-
-	case STATE_IDLE:
+	if (context->transfer_state == STATE_IDLE) {
 		change_transfer_state(context, STATE_T_DATA);
-		// No break, execute reading status register code
+	}
 	
-	case STATE_T_DATA:
-		if (context->memory_size - context->memory_address <= context->byte_counter) {
-			set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
-			return out_byte;
-		}
+	uint32_t idx = context->memory_address + context->byte_counter;
 
-		out_byte = context->memory[context->memory_address + context->byte_counter];
-		context->byte_counter++;
-		break;
-	
+	if (idx >= context->memory_size) {
+		set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
+		return out_byte;
+	}
 
-	default:
-		break;
+	out_byte = context->memory[idx];
+	context->byte_counter++;
+
+	if (idx == 0) {
+		(*context->status_byte) = I2C_O_OK;
 	}
 
 	return out_byte;
@@ -220,7 +212,8 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
 	context->memory_address = 0;
 	context->write_buffer = mem_buffer;
 	context->max_transfer_size = mem_buffer_size;
-	
-	clear_errors(context);
+	context->status_byte = memory + 0;
+
+	(*context->status_byte) = I2C_O_OK;
 	change_transfer_state(context, STATE_IDLE);
 }
