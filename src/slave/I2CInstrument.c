@@ -123,20 +123,6 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 	}
 }
 
-static uint8_t read_memory(struct i2c_context *context) {
-	uint8_t out_byte = 0x0;
-
-	if (context->memory_size - context->memory_address <= context->byte_counter) {
-		set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
-		return out_byte;
-	}
-
-	out_byte = context->memory[context->memory_address + context->byte_counter];
-	context->byte_counter++;
-
-	return out_byte;
-}
-
 static inline uint8_t read_handler(struct i2c_context *context) {
 	uint8_t out_byte = 0x0;
 
@@ -147,9 +133,16 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 		// No break, execute reading status register code
 	
 	case STATE_T_DATA:
-		out_byte = read_memory(context);
+		if (context->memory_size - context->memory_address <= context->byte_counter) {
+			set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
+			return out_byte;
+		}
+
+		out_byte = context->memory[context->memory_address + context->byte_counter];
+		context->byte_counter++;
 		break;
 	
+
 	default:
 		break;
 	}
