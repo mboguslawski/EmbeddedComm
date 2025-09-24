@@ -82,7 +82,8 @@ static inline void write_memory_address(struct i2c_context *context) {
 // Writes received byte to memory/write buffer and checks for errors.
 static inline void write_buffer(struct i2c_context *context, uint8_t byte) {
 	
-	if (context->byte_counter >= context->max_transfer_size) {
+	// Check for overflow in write_buffer and/or write outside memory. 
+	if ( (context->byte_counter >= context->max_transfer_size) || (context->memory_address + context->byte_counter >= context->memory_size) ) {
 		set_error_flag(context, I2C_O_ERR_MEM_OUT_OF_RANGE);
 		return;
 	}
