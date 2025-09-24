@@ -12,7 +12,8 @@ typedef enum {
 	STATE_T_STATUS,         // Transmitting status
 	STATE_T_CHECKSUM,       // Transmitting checksum
 	STATE_T_FINISH,         // Finished transmitting
-	STATE_ERROR,			// Error occurred during transfer
+	STATE_ERROR,			// Error occurred during transfer, transfer dummy bytes, and do not save received bytes
+	STATE_ERROR_IDLE		// Error flags has not been cleared, accept only status reads
 } transfer_state_t;
 
 struct i2c_context {
@@ -133,7 +134,7 @@ static inline void check_checksum(struct i2c_context *context, uint8_t checksum_
 		set_error_flag(context, I2C_O_ERR_DATA_CORRUPTED);
 	}
 
-	context->transfer_state = STATE_T_FINISH;
+	context->transfer_state = STATE_R_FINISH;
 }
 
 // Handle all logic related to slave receiving byte from master.
@@ -146,6 +147,10 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 	// Decide where to save receivied byte according to current state.
 	switch (context->transfer_state) {
 	
+	case STATE_ERROR_IDLE:
+		context->transfer_state = STATE_ERROR;
+		break;
+
 	case STATE_ERROR:
 		// Do not process byte if any error flag is set.
 		break;
@@ -170,7 +175,7 @@ static inline void write_handler(struct i2c_context *context, uint8_t received_b
 		check_checksum(context, received_byte);
 		break;
 		
-	case STATE_T_FINISH:
+	case STATE_R_FINISH:
 		set_error_flag(context, I2C_O_ERR_SIZE_MISMATCH);
 		break;
 
@@ -211,7 +216,7 @@ static inline uint8_t read_memory(struct i2c_context *context) {
 }
 
 static inline uint8_t read_checksum(struct i2c_context *context) {
-	context->transfer_state = STATE_R_FINISH;
+	context->transfer_state = STATE_T_FINISH;
 	return context->checksum;
 }
 
@@ -224,6 +229,7 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 		// Send dummy byte if any error flag is set.
 		return out_byte; // 0x0
 
+	case STATE_ERROR_IDLE:
 	case STATE_IDLE:
 		context->transfer_state = STATE_T_STATUS;
 		context->transfer_size = 1;
@@ -241,7 +247,7 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 		out_byte = read_checksum(context);
 		break;
 
-	case STATE_R_FINISH:
+	case STATE_T_FINISH:
 		set_error_flag(context, I2C_O_ERR_SIZE_MISMATCH);
 		break;
 
@@ -256,6 +262,12 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 static inline void handle_stop(struct i2c_context *context) {
 	if (context->transfer_state == STATE_T_FINISH || context->transfer_state == STATE_R_FINISH) {
 		reset_context(context);
+		return;
+	}
+
+	if (context->transfer_state = STATE_ERROR) {
+		reset_context(context);
+		context->transfer_state = STATE_ERROR_IDLE;
 		return;
 	}
 
