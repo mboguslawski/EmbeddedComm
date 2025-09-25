@@ -14,12 +14,13 @@ struct i2c_context {
 	uint8_t *memory;
 	uint8_t *write_buffer;
 	uint8_t *status_byte;
+	uint8_t *t_checksum_byte;
 	uint32_t max_transfer_size;
 	uint32_t memory_size;
 	volatile uint32_t memory_address;
 	volatile uint32_t byte_counter;
 	volatile transfer_state_t transfer_state;
-	volatile uint8_t r_checksum;
+	volatile uint8_t checksum;
 };
 
 static struct i2c_context i2c0_context, i2c1_context;
@@ -40,7 +41,7 @@ static inline void write_memory(struct i2c_context *context) {
 	if ( (context->transfer_state == STATE_R_DATA) && ((*context->status_byte) == I2C_O_OK) ) {
 		// Check data integrity (compare checksum)
 		// Last byte send by master is checksum
-		if (context->r_checksum != context->write_buffer[context->byte_counter-1]) {
+		if (context->checksum != context->write_buffer[context->byte_counter-1]) {
 			set_error_flag(context, I2C_O_ERR_DATA_CORRUPTED);
 			return;
 		}
@@ -67,7 +68,13 @@ static inline void change_transfer_state(struct i2c_context *context, transfer_s
 	switch (new_state) {
 	
 	case STATE_IDLE:
-		write_memory(context);
+		if (context->transfer_state == STATE_R_DATA) {
+			write_memory(context);
+		
+		} else if (context->transfer_state == STATE_T_DATA) {
+			(*context->t_checksum_byte) = context->checksum;
+		}
+
 		break;
 
 	case STATE_R_ADDRESS:
@@ -76,13 +83,14 @@ static inline void change_transfer_state(struct i2c_context *context, transfer_s
 		break;
 	
 	case STATE_R_DATA:
-		context->r_checksum = calc_checksum(context->write_buffer, ADDRESS_SIZE);
+		context->checksum = calc_checksum(context->write_buffer, ADDRESS_SIZE);
 		write_memory_address(context);
 		context->byte_counter = 0;
 		break;
 
 	case STATE_T_DATA:
 		context->byte_counter = 0;
+		context->checksum = 0;
 		break;
 	}
 
@@ -103,7 +111,7 @@ static inline void write_buffer(struct i2c_context *context, uint8_t byte) {
 	// As last received byte will be checksum, calculate checksum from previously received byte,
 	// so the received checksum itself is not used in calculating checksum on slave's side.
 	if ( (context->transfer_state == STATE_R_DATA) && (context->byte_counter != 0)) {
-		context->r_checksum = calc_checksum_it(context->r_checksum, context->write_buffer[context->byte_counter-1]);
+		context->checksum = calc_checksum_it(context->checksum, context->write_buffer[context->byte_counter-1]);
 	}
 
 	context->byte_counter++;
@@ -144,6 +152,8 @@ static inline uint8_t read_handler(struct i2c_context *context) {
 	if (idx == 0) {
 		(*context->status_byte) = I2C_O_OK;
 	}
+
+	context->checksum = calc_checksum_it(context->checksum, out_byte);
 
 	return out_byte;
 }
@@ -228,7 +238,8 @@ void i2c_instrument_init(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_
 	context->write_buffer = mem_buffer;
 	context->max_transfer_size = mem_buffer_size;
 	context->status_byte = memory + 0;
-	context->r_checksum = 0;
+	context->t_checksum_byte = memory + 1;
+	context->checksum = 0;
 
 	(*context->status_byte) = I2C_O_OK;
 	change_transfer_state(context, STATE_IDLE);
