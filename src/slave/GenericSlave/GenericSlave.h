@@ -6,9 +6,9 @@
 #include "../../common/i2c_orchestra_errors.h"
 #include "../../common/i2c_orchestra_checksum.h"
 
-class I2CInstrument {
+class GenericSlave {
 public:
-	I2CInstrument();
+	GenericSlave();
 
 	void initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize);
 	void writeHandler(uint8_t receivedByte);
@@ -47,6 +47,6 @@ private:
 };
 
 // Set given error flag in status register
-void I2CInstrument::setErrorFlag(uint8_t error) {
+void GenericSlave::setErrorFlag(uint8_t error) {
 	(*statusByte) |= error;
 } 

@@ -1,13 +1,13 @@
 #include "picoSlaveI2C.h"
 
-I2CInstrument ContextI2C0, ContextI2C1;
+GenericSlave ContextI2C0, ContextI2C1;
 
-static inline I2CInstrument* getContext(i2c_inst_t *i2c) {
+static inline GenericSlave* getContext(i2c_inst_t *i2c) {
 	return (i2c == i2c0) ? &ContextI2C0 : &ContextI2C1;
 }
 
 void I2CInterruptHandler(i2c_inst_t *i2c, i2c_slave_event_t event) {
-	I2CInstrument *context = getContext(i2c);
+	GenericSlave *context = getContext(i2c);
 	
 	switch (event) {
 	

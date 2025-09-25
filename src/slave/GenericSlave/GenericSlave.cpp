@@ -1,6 +1,6 @@
-#include "I2CInstrument.h"
+#include "GenericSlave.h"
 
-I2CInstrument::I2CInstrument():
+GenericSlave::GenericSlave():
 	memory(nullptr),
 	rBuffer(nullptr),
 	statusByte(nullptr),
@@ -13,7 +13,7 @@ I2CInstrument::I2CInstrument():
 	checksum(0)
 {}
 
-void I2CInstrument::initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
+void GenericSlave::initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
 	this->memory = memory;
 	this->memorySize = memorySize;
 	this->rBuffer = rBuffer;
@@ -24,7 +24,7 @@ void I2CInstrument::initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rB
 }
 
 // Move received data from master to memory.
-void I2CInstrument::writeMemory() {
+void GenericSlave::writeMemory() {
 
 	// Copy data from rBuffer to memory
 	if ( (currentState == STATE_R_DATA) && ((*statusByte) == I2C_O_OK) ) {
@@ -41,7 +41,7 @@ void I2CInstrument::writeMemory() {
 
 // Copies first four bytes from wbuffer to memoryAddress
 // and sets error is address is not valid.
-void I2CInstrument::writeMemoryAddress() {
+void GenericSlave::writeMemoryAddress() {
 	// Receive memory address (can be multiple bytes long)
 	uint32_t newAddress = *((uint32_t*)rBuffer);
 
@@ -53,7 +53,7 @@ void I2CInstrument::writeMemoryAddress() {
 	memoryAddress = newAddress;
 }
 
-void I2CInstrument::changeTransferState(transferState newState) {
+void GenericSlave::changeTransferState(transferState newState) {
 	switch (newState) {
 	
 	case STATE_IDLE:
@@ -87,7 +87,7 @@ void I2CInstrument::changeTransferState(transferState newState) {
 }
 
 // Writes received byte to memory/write buffer and checks for errors.
-void I2CInstrument::writeBuffer(uint8_t byte) {
+void GenericSlave::writeBuffer(uint8_t byte) {
 	
 	// Check for overflow in rBuffer and/or write outside memory. 
 	if ( (byteCounter >= rBufferSize) || (memoryAddress + byteCounter >= memorySize) ) {
@@ -107,7 +107,7 @@ void I2CInstrument::writeBuffer(uint8_t byte) {
 }
 
 // Handle all logic related to slave receiving byte from master.
-void I2CInstrument::writeHandler(uint8_t received_byte) {
+void GenericSlave::writeHandler(uint8_t received_byte) {
 	// Decide where to save receivied byte according to current state.
 	if (currentState == STATE_IDLE) {
 		changeTransferState(STATE_R_ADDRESS);
@@ -121,7 +121,7 @@ void I2CInstrument::writeHandler(uint8_t received_byte) {
 	}
 }
 
-uint8_t I2CInstrument::readHandler() {
+uint8_t GenericSlave::readHandler() {
 	uint8_t out_byte = 0x0;
 
 	if (currentState == STATE_IDLE) {
@@ -147,7 +147,7 @@ uint8_t I2CInstrument::readHandler() {
 	return out_byte;
 }
 
-void I2CInstrument::stopHandler() {
+void GenericSlave::stopHandler() {
 	
 	// Stop signal should not occur in STATE_R_ADDEREE and STATE_IDLE states.
 	if ( (currentState == STATE_R_ADDRESS) || (currentState == STATE_IDLE) ) {
