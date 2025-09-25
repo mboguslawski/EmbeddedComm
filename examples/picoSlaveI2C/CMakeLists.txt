@@ -46,7 +46,7 @@ pico_set_program_version(picoSlave "0.1")
 pico_enable_stdio_uart(picoSlave 0)
 pico_enable_stdio_usb(picoSlave 1)
 
-add_subdirectory(lib/rpxxxx_i2c_orchestra/src/slave/picoSlaveI2C/)
+add_subdirectory(lib/EmbeddedComm/src/slave/picoSlaveI2C/)
 
 # Add the standard library to the build
 target_link_libraries(picoSlave
