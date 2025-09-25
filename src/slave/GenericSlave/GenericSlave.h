@@ -3,8 +3,8 @@
 #include <string.h>
 #include <cstdint>
 
-#include "../../common/i2c_orchestra_errors.h"
-#include "../../common/i2c_orchestra_checksum.h"
+#include "../../common/embeddedCommErrors.h"
+#include "../../common/embeddedCommChecksum.h"
 
 class GenericSlave {
 public:

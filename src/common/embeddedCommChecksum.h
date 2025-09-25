@@ -1,5 +1,4 @@
-#ifndef I2C_ORCHESTRA_CHECKSUM_H
-#define I2C_ORCHESTRA_CHECKSUM_H
+#pragma once
 
 // Calculate CRC8 (see https://en.wikipedia.org/wiki/Cyclic_redundancy_check)
 // using iterative method.
@@ -26,5 +25,3 @@ inline uint8_t calc_checksum_append(uint8_t *data, uint32_t size, uint8_t start_
 inline uint8_t calc_checksum(uint8_t *data, uint32_t size) {
 	return calc_checksum_append(data, size, 0);
 }
-
-#endif

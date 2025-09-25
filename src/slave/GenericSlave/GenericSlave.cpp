@@ -27,11 +27,11 @@ void GenericSlave::initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBu
 void GenericSlave::writeMemory() {
 
 	// Copy data from rBuffer to memory
-	if ( (currentState == STATE_R_DATA) && ((*statusByte) == I2C_O_OK) ) {
+	if ( (currentState == STATE_R_DATA) && ((*statusByte) == EMBEDDED_C_OK) ) {
 		// Check data integrity (compare checksum)
 		// Last byte send by master is checksum
 		if (checksum != rBuffer[byteCounter - 1]) {
-			setErrorFlag(I2C_O_ERR_DATA_CORRUPTED);
+			setErrorFlag(EMBEDDED_C_ERR_DATA_CORRUPTED);
 			return;
 		}
 		
@@ -46,7 +46,7 @@ void GenericSlave::writeMemoryAddress() {
 	uint32_t newAddress = *((uint32_t*)rBuffer);
 
 	if (newAddress >= memorySize) {
-		setErrorFlag(I2C_O_ERR_MEM_OUT_OF_RANGE);
+		setErrorFlag(EMBEDDED_C_ERR_MEM_OUT_OF_RANGE);
 		return;
 	}
 
@@ -91,7 +91,7 @@ void GenericSlave::writeBuffer(uint8_t byte) {
 	
 	// Check for overflow in rBuffer and/or write outside memory. 
 	if ( (byteCounter >= rBufferSize) || (memoryAddress + byteCounter >= memorySize) ) {
-		setErrorFlag(I2C_O_ERR_MEM_OUT_OF_RANGE);
+		setErrorFlag(EMBEDDED_C_ERR_MEM_OUT_OF_RANGE);
 		return;
 	}
 
@@ -131,7 +131,7 @@ uint8_t GenericSlave::readHandler() {
 	uint32_t idx = memoryAddress + byteCounter;
 
 	if (idx >= memorySize) {
-		setErrorFlag(I2C_O_ERR_MEM_OUT_OF_RANGE);
+		setErrorFlag(EMBEDDED_C_ERR_MEM_OUT_OF_RANGE);
 		return out_byte;
 	}
 
@@ -139,7 +139,7 @@ uint8_t GenericSlave::readHandler() {
 	byteCounter++;
 
 	if (idx == 0) {
-		(*statusByte) = I2C_O_OK;
+		(*statusByte) = EMBEDDED_C_OK;
 	}
 
 	checksum = calc_checksum_it(checksum, out_byte);
@@ -151,12 +151,12 @@ void GenericSlave::stopHandler() {
 	
 	// Stop signal should not occur in STATE_R_ADDEREE and STATE_IDLE states.
 	if ( (currentState == STATE_R_ADDRESS) || (currentState == STATE_IDLE) ) {
-		setErrorFlag(I2C_O_ERR_INVALID_ACTION);
+		setErrorFlag(EMBEDDED_C_ERR_INVALID_ACTION);
 	}
 	
 	// Master couldn't read 0 bytes.
 	if ( (currentState == STATE_T_DATA) && (byteCounter == 0) ) {
-		setErrorFlag(I2C_O_ERR_INVALID_ACTION);
+		setErrorFlag(EMBEDDED_C_ERR_INVALID_ACTION);
 	}
 
 	changeTransferState(STATE_IDLE);

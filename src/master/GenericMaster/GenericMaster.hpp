@@ -2,8 +2,8 @@
 
 #include <string.h>
 
-#include "../../common/i2c_orchestra_errors.h"
-#include "../../common/i2c_orchestra_checksum.h"
+#include "../../common/embeddedCommErrors.h"
+#include "../../common/embeddedCommChecksum.h"
 
 template <typename slaveInfo>
 class GenericMaster {
