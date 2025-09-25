@@ -6,9 +6,9 @@
 #include "../../common/i2c_orchestra_checksum.h"
 
 template <typename slaveInfo>
-class I2CConductor {
+class GenericMaster {
 public:
-	I2CConductor();
+	GenericMaster();
 	
 	int write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize);
 	int read(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *buffer, uint32_t readSize);
@@ -21,10 +21,10 @@ protected:
 };
 
 template <typename slaveInfo>
-I2CConductor<slaveInfo>::I2CConductor() {}
+GenericMaster<slaveInfo>::GenericMaster() {}
 
 template <typename slaveInfo>
-int I2CConductor<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize) {
+int GenericMaster<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize) {
 	// Data size, four bytes for address and one byte for checksum.
 	const uint32_t messageBufferSize = writeSize + 4 + 1;
 	uint8_t messageBuffer[messageBufferSize];
@@ -42,7 +42,7 @@ int I2CConductor<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAddress, uin
 }
 
 template <typename slaveInfo>
-int I2CConductor<slaveInfo>::read(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *buffer, uint32_t readSize) {
+int GenericMaster<slaveInfo>::read(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *buffer, uint32_t readSize) {
 	// Write address and transfer size
 	int res = write(sinfo, memoryAddress, NULL, 0);
 	if (res < 0) {
@@ -54,11 +54,11 @@ int I2CConductor<slaveInfo>::read(slaveInfo &sinfo, uint32_t memoryAddress, uint
 }
 
 template <typename slaveInfo>
-int I2CConductor<slaveInfo>::readStatus(slaveInfo &sinfo, uint8_t* statusByte) {
+int GenericMaster<slaveInfo>::readStatus(slaveInfo &sinfo, uint8_t* statusByte) {
 	return read(sinfo, 0, statusByte, 1);
 }
 
 template <typename slaveInfo>
-int I2CConductor<slaveInfo>::readTChecksum(slaveInfo &sinfo, uint8_t* tChecksumByte) {
+int GenericMaster<slaveInfo>::readTChecksum(slaveInfo &sinfo, uint8_t* tChecksumByte) {
 	return read(sinfo, 0, tChecksumByte, 1);
 }
