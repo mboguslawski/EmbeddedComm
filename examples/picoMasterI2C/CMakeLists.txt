@@ -11,16 +11,16 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
-    set(USERHOME $ENV{USERPROFILE})
+	set(USERHOME $ENV{USERPROFILE})
 else()
-    set(USERHOME $ENV{HOME})
+	set(USERHOME $ENV{HOME})
 endif()
 set(sdkVersion 2.2.0)
 set(toolchainVersion 14_2_Rel1)
 set(picotoolVersion 2.2.0)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
-    include(${picoVscode})
+	include(${picoVscode})
 endif()
 # ====================================================================================
 set(PICO_BOARD pico CACHE STRING "Board type")
@@ -48,13 +48,13 @@ pico_enable_stdio_usb(pico_master_i2c 1)
 
 # Add the standard library to the build
 target_link_libraries(pico_master_i2c
-        pico_stdlib
-        picoMasterI2C
-        hardware_i2c)
+		pico_stdlib
+		picoMasterI2C
+		hardware_i2c)
 
 # Add the standard include files to the build
 target_include_directories(pico_master_i2c PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
+		${CMAKE_CURRENT_LIST_DIR}
 )
 
 pico_add_extra_outputs(pico_master_i2c)
