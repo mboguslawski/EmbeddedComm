@@ -4,6 +4,7 @@
 
 #include "../../common/embeddedCommErrors.hpp"
 #include "../../common/embeddedCommChecksum.hpp"
+#include "../../common/embeddedCommConstants.hpp"
 
 template <typename slaveInfo>
 class GenericMaster {
@@ -26,14 +27,14 @@ GenericMaster<slaveInfo>::GenericMaster() {}
 template <typename slaveInfo>
 int GenericMaster<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize) {
 	// Data size, four bytes for address and one byte for checksum.
-	const uint32_t messageBufferSize = writeSize + 4 + 1;
+	const uint32_t messageBufferSize = writeSize + EmbeddedComm::SLAVE_ADDRESS_SIZE + EmbeddedComm::CHECKSUM_SIZE;
 	uint8_t messageBuffer[messageBufferSize];
 
 	// Instrument's memory address
-	memcpy(messageBuffer, &memoryAddress, 4);
+	memcpy(messageBuffer, &memoryAddress, EmbeddedComm::SLAVE_ADDRESS_SIZE);
 	// Data
 	if (data != NULL) {
-		memcpy(messageBuffer + 4, data, writeSize);
+		memcpy(messageBuffer + EmbeddedComm::SLAVE_ADDRESS_SIZE, data, writeSize);
 	}
 	// Attach checksum.
 	messageBuffer[messageBufferSize - 1] = calc_checksum(messageBuffer, messageBufferSize-1);
@@ -55,10 +56,10 @@ int GenericMaster<slaveInfo>::read(slaveInfo &sinfo, uint32_t memoryAddress, uin
 
 template <typename slaveInfo>
 int GenericMaster<slaveInfo>::readStatus(slaveInfo &sinfo, uint8_t* statusByte) {
-	return read(sinfo, 0, statusByte, 1);
+	return read(sinfo, EmbeddedComm::DEFAULT_STATUS_BYTE_ADDRESS, statusByte, EmbeddedComm::STATUS_SIZE);
 }
 
 template <typename slaveInfo>
 int GenericMaster<slaveInfo>::readTChecksum(slaveInfo &sinfo, uint8_t* tChecksumByte) {
-	return read(sinfo, 0, tChecksumByte, 1);
+	return read(sinfo, EmbeddedComm::DEFAULT_T_CHECKSUM_BYTE_ADDRESS, tChecksumByte, EmbeddedComm::CHECKSUM_SIZE);
 }

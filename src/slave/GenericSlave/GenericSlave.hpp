@@ -5,6 +5,7 @@
 
 #include "../../common/embeddedCommErrors.hpp"
 #include "../../common/embeddedCommChecksum.hpp"
+#include "../../common/embeddedCommConstants.hpp"
 
 class GenericSlave {
 public:
@@ -31,8 +32,6 @@ private:
 	void writeMemoryAddress();
 	void changeTransferState(transferState newState);
 	void writeBuffer(uint8_t byte);
-
-	static const uint32_t ADDRESS_SIZE = 4; // Memory address size in bytes.
 
 	uint8_t *memory;
 	uint8_t *rBuffer;

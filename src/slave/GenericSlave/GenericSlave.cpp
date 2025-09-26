@@ -21,8 +21,8 @@ void GenericSlave::initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBu
 	this->rBuffer = rBuffer;
 	this->rBufferSize = rBufferSize;
 
-	statusByte = memory + 0;
-	tChecksumByte = memory + 1;
+	statusByte = memory + DEFAULT_STATUS_BYTE_ADDRESS;
+	tChecksumByte = memory + DEFAULT_T_CHECKSUM_BYTE_ADDRESS;
 }
 
 // Move received data from master to memory.
@@ -74,7 +74,7 @@ void GenericSlave::changeTransferState(transferState newState) {
 		break;
 	
 	case STATE_R_DATA:
-		checksum = calc_checksum(rBuffer, ADDRESS_SIZE);
+		checksum = calc_checksum(rBuffer, EmbeddedComm::SLAVE_ADDRESS_SIZE);
 		writeMemoryAddress();
 		byteCounter = 0;
 		break;
@@ -118,7 +118,7 @@ void GenericSlave::writeHandler(uint8_t received_byte) {
 	writeBuffer(received_byte);
 
 	// Check if memory address is fully received in buffer
-	if ( (currentState == STATE_R_ADDRESS) && (byteCounter == ADDRESS_SIZE)) {
+	if ( (currentState == STATE_R_ADDRESS) && (byteCounter == SLAVE_ADDRESS_SIZE)) {
 		changeTransferState(STATE_R_DATA);
 	}
 }
@@ -140,7 +140,7 @@ uint8_t GenericSlave::readHandler() {
 	out_byte = memory[idx];
 	byteCounter++;
 
-	if (idx == 0) {
+	if (idx == DEFAULT_STATUS_BYTE_ADDRESS) {
 		(*statusByte) = CommStatus::OK;
 	}
 
