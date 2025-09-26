@@ -55,11 +55,7 @@ Reading the status byte from slave's memory allows master to determine if last w
 | **1** | **ErrRBufferOverflow** | Slave's write buffer is overflowing. | Reduce the packet size or increase the slave's write buffer. |
 | **2** | **ErrInvalidAction** | Master performed an action that is inconsistent with the protocol. | Ensure all master operations follow the protocol. |
 | **3** | **ErrDataCorrupted** | Checksum sent by master does not match the data. | Verify the checksum calculation and ensure data integrity during transmission. |
-| **4** | **Not used** | - | - |
-| **5** | **Not used** | - | - |
-| **6** | **Not used** | - | - |
-| **7** | **Not used** | - | - |
-
+| **4-7** | **Not used** | - | - |
 
 ### 1.3 Transmit Checksum Byte
 This byte, stored in the slave's memory, contains the checksum calculated from the last master read operation. It allows the master to verify the integrity of the received data.
