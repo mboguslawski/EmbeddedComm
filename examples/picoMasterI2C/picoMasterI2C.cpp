@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
-#include <picoMasterI2C.h>
+#include <picoMasterI2C.hpp>
 
 #define I2C_PORT i2c1
 #define I2C_SDA 14

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "picoSlaveI2C.h"
+#include "picoSlaveI2C.hpp"
 
 static const uint I2C_SLAVE_ADDRESS = 0x17;
 static const uint SDA = 16;

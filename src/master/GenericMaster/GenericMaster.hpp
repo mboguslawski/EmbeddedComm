@@ -2,8 +2,8 @@
 
 #include <string.h>
 
-#include "../../common/embeddedCommErrors.h"
-#include "../../common/embeddedCommChecksum.h"
+#include "../../common/embeddedCommErrors.hpp"
+#include "../../common/embeddedCommChecksum.hpp"
 
 template <typename slaveInfo>
 class GenericMaster {

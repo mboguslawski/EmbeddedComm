@@ -1,4 +1,4 @@
-#include "picoSlaveI2C.h"
+#include "picoSlaveI2C.hpp"
 
 GenericSlave ContextI2C0, ContextI2C1;
 

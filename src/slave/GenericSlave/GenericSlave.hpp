@@ -3,8 +3,8 @@
 #include <string.h>
 #include <cstdint>
 
-#include "../../common/embeddedCommErrors.h"
-#include "../../common/embeddedCommChecksum.h"
+#include "../../common/embeddedCommErrors.hpp"
+#include "../../common/embeddedCommChecksum.hpp"
 
 class GenericSlave {
 public:

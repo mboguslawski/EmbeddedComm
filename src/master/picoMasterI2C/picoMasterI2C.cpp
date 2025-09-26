@@ -1,4 +1,4 @@
-#include "picoMasterI2C.h"
+#include "picoMasterI2C.hpp"
 
 picoMasterI2C::picoMasterI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c):
 	i2cInstance(i2c)

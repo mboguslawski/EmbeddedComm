@@ -1,4 +1,4 @@
-#include "GenericSlave.h"
+#include "GenericSlave.hpp"
 
 GenericSlave::GenericSlave():
 	memory(nullptr),
