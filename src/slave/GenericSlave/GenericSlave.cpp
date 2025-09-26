@@ -74,7 +74,7 @@ void GenericSlave::changeTransferState(transferState newState) {
 		break;
 	
 	case STATE_R_DATA:
-		checksum = calc_checksum(rBuffer, EmbeddedComm::SLAVE_ADDRESS_SIZE);
+		checksum = calculateChecksum(rBuffer, EmbeddedComm::SLAVE_ADDRESS_SIZE);
 		writeMemoryAddress();
 		byteCounter = 0;
 		break;
@@ -102,7 +102,7 @@ void GenericSlave::writeBuffer(uint8_t byte) {
 	// As last received byte will be checksum, calculate checksum from previously received byte,
 	// so the received checksum itself is not used in calculating checksum on slave's side.
 	if ( (currentState == STATE_R_DATA) && (byteCounter != 0)) {
-		checksum = calc_checksum_it(checksum, rBuffer[byteCounter-1]);
+		checksum = calculateChecksumIt(checksum, rBuffer[byteCounter-1]);
 	}
 
 	byteCounter++;
@@ -144,7 +144,7 @@ uint8_t GenericSlave::readHandler() {
 		(*statusByte) = CommStatus::OK;
 	}
 
-	checksum = calc_checksum_it(checksum, out_byte);
+	checksum = calculateChecksumIt(checksum, out_byte);
 
 	return out_byte;
 }

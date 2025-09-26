@@ -37,7 +37,7 @@ int GenericMaster<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAddress, ui
 		memcpy(messageBuffer + EmbeddedComm::SLAVE_ADDRESS_SIZE, data, writeSize);
 	}
 	// Attach checksum.
-	messageBuffer[messageBufferSize - 1] = calc_checksum(messageBuffer, messageBufferSize-1);
+	messageBuffer[messageBufferSize - 1] = EmbeddedComm::calculateChecksum(messageBuffer, messageBufferSize-1);
 
 	return writeBytes(sinfo, messageBuffer, messageBufferSize);
 }
