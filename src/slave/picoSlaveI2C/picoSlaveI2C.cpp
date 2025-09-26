@@ -1,13 +1,14 @@
 #include "picoSlaveI2C.hpp"
 
-GenericSlave ContextI2C0, ContextI2C1;
+picoSlaveI2C *ContextI2C0 = nullptr, *ContextI2C1 = nullptr;
 
-static inline GenericSlave* getContext(i2c_inst_t *i2c) {
-	return (i2c == i2c0) ? &ContextI2C0 : &ContextI2C1;
+static inline picoSlaveI2C* getContext(i2c_inst_t *i2c) {
+	
+	return  (i2c == nullptr) ? (nullptr) : ( (i2c == i2c0) ? ContextI2C0 : ContextI2C1 );
 }
 
 void I2CInterruptHandler(i2c_inst_t *i2c, i2c_slave_event_t event) {
-	GenericSlave *context = getContext(i2c);
+	picoSlaveI2C *context = getContext(i2c);
 	
 	switch (event) {
 	
@@ -31,7 +32,19 @@ void I2CInterruptHandler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	}
 }
 
-void initPicoSlaveI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKHz, uint8_t i2c_address, uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
+picoSlaveI2C::picoSlaveI2C():
+	i2cInstance(nullptr)
+{}
+
+picoSlaveI2C::~picoSlaveI2C() {
+	picoSlaveI2C *toClear = getContext(this->i2cInstance);
+
+	if (toClear != nullptr) {
+		toClear = nullptr;
+	}
+}
+
+void picoSlaveI2C::initialize(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKHz, uint8_t i2c_address, uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
 	// Initialize SDA pin
 	gpio_init(sda);
 	gpio_set_function(sda, GPIO_FUNC_I2C);
@@ -46,5 +59,11 @@ void initPicoSlaveI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFre
 	i2c_init(i2c, i2cFreqKHz * 1000);
 	i2c_slave_init(i2c, i2c_address, &I2CInterruptHandler);
 
-	getContext(i2c)->initialize(memory, memorySize, rBuffer, rBufferSize);
+	if (i2c == i2c0) {
+		ContextI2C0 = this;
+	} else {
+		ContextI2C1 = this;
+	}
+
+	GenericSlave::initialize(memory, memorySize, rBuffer, rBufferSize);
 }
