@@ -31,7 +31,7 @@ void I2CInterruptHandler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	}
 }
 
-void initPicoSlaveI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_address, uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
+void initPicoSlaveI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKHz, uint8_t i2c_address, uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
 	// Initialize SDA pin
 	gpio_init(sda);
 	gpio_set_function(sda, GPIO_FUNC_I2C);
@@ -42,8 +42,8 @@ void initPicoSlaveI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint8_t i2c_add
 	gpio_set_function(scl, GPIO_FUNC_I2C);
 	gpio_pull_up(scl);
 
-	// Initialize i2c with 1MHz frequency
-	i2c_init(i2c, 1*1000*1000);
+	// Initialize i2c
+	i2c_init(i2c, i2cFreqKHz * 1000);
 	i2c_slave_init(i2c, i2c_address, &I2CInterruptHandler);
 
 	getContext(i2c)->initialize(memory, memorySize, rBuffer, rBufferSize);
