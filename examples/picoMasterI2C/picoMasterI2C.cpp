@@ -6,6 +6,7 @@
 #define I2C_PORT i2c1
 #define I2C_SDA 14
 #define I2C_SCL 15
+#define I2C_FREQ_KHz 1000 // 1Mhz
 
 int main() {
 	stdio_init_all();
@@ -13,7 +14,7 @@ int main() {
 		
 	puts("Pico I2C master example\n");
 	
-	picoMasterI2C master(I2C_SCL, I2C_SDA, I2C_PORT);
+	picoMasterI2C master(I2C_SCL, I2C_SDA, I2C_PORT, I2C_FREQ_KHz);
 	uint8_t slaveAddress = 0x17;
 
 	uint8_t buffer[16] = {};

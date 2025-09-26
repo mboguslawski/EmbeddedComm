@@ -8,7 +8,7 @@
 
 class picoMasterI2C : public GenericMaster<uint8_t> {
 public:
-	picoMasterI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c);
+	picoMasterI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKHz);
 
 protected:
 	int readBytes(uint8_t &slaveAddress, uint8_t *byteArray, uint32_t numberOfBytes) override;
