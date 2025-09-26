@@ -86,6 +86,19 @@ Master                               Slave
   |                                    |
 ```
 
+**Write Sequence Diagram: (with reading slave's status)**
+
+```text
+Master                               Slave
+  |                                    |
+  |---[ Address | Data | Checksum ]--->|
+  |                                    |
+  |---[ Address = 0x0 | Checksum ]---->|
+  |                                    |
+  |<-----[ Slave's Status Byte ]-------|
+  |                                    |
+```
+
 ---
 
 ### 2.2 Master → Slave: Memory Read
@@ -115,15 +128,30 @@ After sending the address, the master reads the data from the slave:
 The slave transfers data to the master starting from the memory location specified by the most recently written address. The internal address pointer auto-increments after each byte transfer, allowing sequential reads. The total number of bytes transferred is limited only by the size of the slave’s memory.
 
 **Read Sequence Diagram:**
-
 ```text
 Master                        Slave
   |                             |
   |---[ Address | Checksum ]--->|
   |                             |
-  |                             |
   |<----------[ Data ]----------|
   |                             |
+```
+**Read Sequence Diagram (with checksum check and status read):**
+```text
+Master                            Slave
+  |                                 |
+  |-----[ Address | Checksum ]----->|
+  |                                 |
+  |<------------[ Data ]------------|
+  |                                 |
+  |--[ Address = 0x1 | Checksum ]-->|
+  |                                 |
+  |<-[ Slave's Transmit Checksum ]--|
+  |                                 |
+  |--[ Address = 0x0 | Checksum ]-->|
+  |                                 |
+  |<----[ Slave's Status Byte ]-----|
+  |                                 |
 ```
 
 ## 3. Hardware-specific implementations.
