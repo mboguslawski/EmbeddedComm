@@ -22,14 +22,18 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 picoMasterI2C::picoMasterI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKhz):
 	i2cInstance(i2c)
 {
+	// Setup SDA pin.
 	gpio_init(sda);
 	gpio_set_function(sda, GPIO_FUNC_I2C);
 	gpio_pull_up(sda);
 
+	// Setup SCL pin.
 	gpio_init(scl);
 	gpio_set_function(scl, GPIO_FUNC_I2C);
 	gpio_pull_up(scl);
 
+	// Initialize i2c instance with given frequency.
+	// The chosen frequency must be identical in every master and slave device.
 	i2c_init(i2c, i2cFreqKhz * 1000);
 }
 

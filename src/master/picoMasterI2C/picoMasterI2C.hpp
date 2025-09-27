@@ -25,15 +25,21 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 
 #include "GenericMaster.hpp"
 
-
+// 7-bit I2C address is used to identify slave, so 8-bit int type is used
+// to pass slave's information (its address).
 class picoMasterI2C : public GenericMaster<uint8_t> {
 public:
 	picoMasterI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKHz);
 
 protected:
+	// Hardware-specific function to read bytes from slave via I2C.
+	// Pass pico c sdk i2c_read() function result as return value.
 	int readBytes(uint8_t &slaveAddress, uint8_t *byteArray, uint32_t numberOfBytes) override;
+	
+	// Hardware-specific function to write bytes from slave via I2C.
+	// Pass pico c sdk i2c_write() function result as return value.
 	int writeBytes(uint8_t &slaveAddress, uint8_t *byteArray, uint32_t numberOfBytes) override;
 
 private:
-	i2c_inst_t *i2cInstance;
+	i2c_inst_t *i2cInstance; // i2c0 or i2c1
 };

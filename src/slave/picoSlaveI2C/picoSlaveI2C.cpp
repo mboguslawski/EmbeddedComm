@@ -19,13 +19,19 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 
 #include "picoSlaveI2C.hpp"
 
+// The I2C interrupt handler requires a specific function signature and cannot be a non-static
+// class method (because of the implicit 'this' pointer). 
+// This implementation provides a workaround: we map each interrupt source to a corresponding 
+// picoSlaveI2C object. Since the number of objects is limited by the number of I2C interfaces 
+// on the Pico, the handler can delegate the interrupt to the correct instance based on 
+// the originating I2C interface.
 picoSlaveI2C *ContextI2C0 = nullptr, *ContextI2C1 = nullptr;
 
 static inline picoSlaveI2C* getContext(i2c_inst_t *i2c) {
-	
 	return  (i2c == nullptr) ? (nullptr) : ( (i2c == i2c0) ? ContextI2C0 : ContextI2C1 );
 }
 
+// I2C interface interrupt handler, that calls picoSlaveI2C object methods based on I2C events.
 void I2CInterruptHandler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	picoSlaveI2C *context = getContext(i2c);
 	
@@ -78,6 +84,7 @@ void picoSlaveI2C::initialize(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_
 	i2c_init(i2c, i2cFreqKHz * 1000);
 	i2c_slave_init(i2c, i2c_address, &I2CInterruptHandler);
 
+	// Set this object as context in I2C interface used by this object. 
 	if (i2c == i2c0) {
 		ContextI2C0 = this;
 	} else {

@@ -66,6 +66,7 @@ void GenericSlave::writeMemoryAddress() {
 	// Receive memory address (can be multiple bytes long)
 	uint32_t newAddress = *((uint32_t*)rBuffer);
 
+	// Ensure that address does not point outside memory.
 	if (newAddress >= memorySize) {
 		setErrorFlag(CommStatus::ErrMemoryOutOfRange);
 		return;
@@ -78,9 +79,11 @@ void GenericSlave::changeTransferState(transferState newState) {
 	switch (newState) {
 	
 	case STATE_IDLE:
+		// Receicing data finished, move data from receive buffer to memory.
 		if (currentState == STATE_R_DATA) {
 			writeMemory();
 		
+		// Sending data finished, set transmit checksum byte value.
 		} else if (currentState == STATE_T_DATA) {
 			(*tChecksumByte) = checksum;
 		}
@@ -88,17 +91,21 @@ void GenericSlave::changeTransferState(transferState newState) {
 		break;
 
 	case STATE_R_ADDRESS:
+		// Set values to prepeare for receiving memory address value.
 		memoryAddress = 0;
 		byteCounter = 0;
 		break;
 	
 	case STATE_R_DATA:
+		// Checksum is calculated from both received memory and data.
+		// Calculate and save checksum from address part.
 		checksum = calculateChecksum(rBuffer, EmbeddedComm::SLAVE_ADDRESS_SIZE);
-		writeMemoryAddress();
+		writeMemoryAddress(); // Set memory address value.
 		byteCounter = 0;
 		break;
 
 	case STATE_T_DATA:
+		// Set values to prepeare for transmitting data.
 		byteCounter = 0;
 		checksum = 0;
 		break;
@@ -107,7 +114,7 @@ void GenericSlave::changeTransferState(transferState newState) {
 	currentState = newState;
 }
 
-// Writes received byte to memory/write buffer and checks for errors.
+// Writes received byte to write buffer and checks for errors.
 void GenericSlave::writeBuffer(uint8_t byte) {
 	
 	// Check for overflow in rBuffer and/or write outside memory. 
@@ -146,11 +153,13 @@ uint8_t GenericSlave::readHandler() {
 	uint8_t out_byte = 0x0;
 
 	if (currentState == STATE_IDLE) {
+		// Move to data transmit state.
 		changeTransferState(STATE_T_DATA);
 	}
 	
 	uint32_t idx = memoryAddress + byteCounter;
 
+	// Ensure that read location does not point outside memory region.
 	if (idx >= memorySize) {
 		setErrorFlag(CommStatus::ErrMemoryOutOfRange);
 		return out_byte;
@@ -160,9 +169,11 @@ uint8_t GenericSlave::readHandler() {
 	byteCounter++;
 
 	if (idx == DEFAULT_STATUS_BYTE_ADDRESS) {
+		// Status byte work in the read-to-clear manner.
 		(*statusByte) = CommStatus::OK;
 	}
 
+	// Include each byte in checksum calculation.
 	checksum = calculateChecksumIt(checksum, out_byte);
 
 	return out_byte;

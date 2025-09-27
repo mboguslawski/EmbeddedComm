@@ -3,6 +3,7 @@ picoMasterI2C.cpp
 
 Example usage of picoMasterI2C class
 Uses pico's i2c1 port with pin 14 as sda and pin 15 as scl.
+Requaries slave connected by I2C bus with at least 18 byte memory and 17 byte receive buffer.
 
 Copyright (C) 2025 Mateusz Bogusławski, E: mateusz.boguslawski@ibnet.pl
 
@@ -19,25 +20,25 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 */
 
 #include <stdio.h>
-#include "pico/stdlib.h"
-#include "hardware/i2c.h"
+#include <pico/stdlib.h>
+#include <hardware/i2c.h>
+
 #include <picoMasterI2C.hpp>
 
-#define I2C_PORT i2c1
-#define I2C_SDA 14
-#define I2C_SCL 15
-#define I2C_FREQ_KHz 1000 // 1Mhz
+constexpr i2c_inst_t* I2C =  i2c1;
+constexpr uint8_t SDA = 14;
+constexpr uint8_t SCL = 15;
+constexpr uint32_t I2C_FREQ_KHz = 1000;
+uint8_t SLAVE_I2C_ADDRESS = 0x17; 
 
 int main() {
 	stdio_init_all();
 	sleep_ms(4000);
-		
-	puts("Pico I2C master example\n");
+	printf("Pico I2C master example\n");
 	
-	picoMasterI2C master(I2C_SCL, I2C_SDA, I2C_PORT, I2C_FREQ_KHz);
-	uint8_t slaveAddress = 0x17;
+	picoMasterI2C master(SCL, SDA, I2C, I2C_FREQ_KHz);
 
-	uint8_t buffer[16] = {};
+	uint8_t buffer[16] = {}; // Buffer for writing/reading data
 	uint8_t status;
 	uint8_t slave_tchecksum;
 	
@@ -46,27 +47,37 @@ int main() {
 		printf("%d\n", i);
 		i++;
 		
+		// Increment each value in buffer.
 		for (uint32_t i = 0; i < 16; i++) {
 			buffer[i] += 1;
 		}
 
-		master.write(slaveAddress, 255-16, buffer, 16);
-		master.readStatus(slaveAddress, &status);
+		// Write new data to slave and check status
+		master.write(SLAVE_I2C_ADDRESS, 2, buffer, 16);
+		master.readStatus(SLAVE_I2C_ADDRESS, &status);
 		printf("Write status %u\n", status);
 
-
+		// Erase values in the buffer, to show,
+		// that data is read from slave and not remembered by master.
 		for (uint32_t i = 0; i < 16; i++) {
 			buffer[i] = 0;
 		}
 
-		master.read(slaveAddress, 255-16, buffer, 16);
-		master.readTChecksum(slaveAddress, &slave_tchecksum);
-		master.readStatus(slaveAddress, &status);
+		// Read 16 bytes that were previously written to slave's memory;
+		master.read(SLAVE_I2C_ADDRESS, 2, buffer, 16);
+		master.readTChecksum(SLAVE_I2C_ADDRESS, &slave_tchecksum);
+		master.readStatus(SLAVE_I2C_ADDRESS, &status);
 		printf("Read status %u\n", status);
 
 		printf("Data:\n");
 		for (uint32_t i = 0; i < 16; i++) {
 			printf("%u %u\n", i, buffer[i]);
+		}
+
+		if (EmbeddedComm::calculateChecksum(buffer, 16) == slave_tchecksum) {
+			printf("Checksum matches\n");
+		} else {
+			printf("Checksum does not match!!!\n");
 		}
 
 		sleep_ms(1000);

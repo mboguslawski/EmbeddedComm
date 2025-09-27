@@ -27,18 +27,33 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 #include "../../common/embeddedCommChecksum.hpp"
 #include "../../common/embeddedCommConstants.hpp"
 
+// Template implementation allows flexibility for child classes in defining slave information types.
 template <typename slaveInfo>
 class GenericMaster {
 public:
 	GenericMaster();
 	
+	// Write bytes to (pointed by sinfo parameter) slave's memory starting with given address.
+	// Keep in mind that write to slave is limited by its receive buffer capacity (minus one byte to account for checksum).
+	// As return value, pass code returned by some hardware-specific write function from child class. 
 	int write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize);
+	
+	// Read bytes from (pointed by sinfo parameter) slave's memory starting with given address,
+	// load data into buffer. Ensure buffer has atleast readSize bytes.
+	// As return value, pass code returned by some hardware-specific read function from child class. 
 	int read(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *buffer, uint32_t readSize);
+	
+	// Read one byte at status address using read method.
 	inline int readStatus(slaveInfo &sinfo, uint8_t* statusByte);
+
+	// Read one byte at transmit checksum address using read method.
 	inline int readTChecksum(slaveInfo &sinfo, uint8_t* tChecksumByte);
 
 protected:
+	// Some hardware-specific function used to write bytes to slave.
 	virtual int writeBytes(slaveInfo &sinfo, uint8_t *bytes, uint32_t numberOfBytes) = 0;
+
+	// Some hardware-specific function used to read bytes from slave.
 	virtual int readBytes(slaveInfo &sinfo, uint8_t *bytes, uint32_t numberOfBytes) = 0;
 };
 

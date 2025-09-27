@@ -3,6 +3,7 @@ picoSlaveI2C.cpp
 
 Example usage of picoSlaveI2C class
 Uses pico's i2c0 port with pin 16 as sda and pin 17 as scl.
+Sets up slave with 64 bytes of memory and 32 bytes of receive buffer.
 
 Copyright (C) 2025 Mateusz Bogusławski, E: mateusz.boguslawski@ibnet.pl
 
@@ -29,8 +30,8 @@ static const uint SDA = 16; // 4
 static const uint SCL = 17; // 5
 static const uint32_t i2cFrequencyKHz = 1000; // 1MHz
 
-uint8_t memory[256];
-uint8_t buffer[64];
+uint8_t memory[32];
+uint8_t buffer[32];
 
 int main() {
     stdio_init_all();
