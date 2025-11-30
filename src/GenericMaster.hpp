@@ -23,9 +23,9 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 
 #include <string.h>
 
-#include "../../common/embeddedCommErrors.hpp"
-#include "../../common/embeddedCommChecksum.hpp"
-#include "../../common/embeddedCommConstants.hpp"
+#include "embeddedCommErrors.hpp"
+#include "embeddedCommChecksum.hpp"
+#include "embeddedCommConstants.hpp"
 
 // Template implementation allows flexibility for child classes in defining slave information types.
 template <typename slaveInfo>

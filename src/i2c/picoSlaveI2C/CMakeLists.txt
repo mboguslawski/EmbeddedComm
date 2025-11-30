@@ -1,11 +1,11 @@
 add_library(picoSlaveI2C STATIC
-	../GenericSlave/GenericSlave.cpp
+	../../GenericSlave.cpp
 	picoSlaveI2C.cpp
 )
 
 target_include_directories(picoSlaveI2C PUBLIC
 	${CMAKE_CURRENT_LIST_DIR}
-	../GenericSlave/
+	../../
 
 )
 

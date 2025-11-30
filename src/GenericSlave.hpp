@@ -24,9 +24,9 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 #include <string.h>
 #include <cstdint>
 
-#include "../../common/embeddedCommErrors.hpp"
-#include "../../common/embeddedCommChecksum.hpp"
-#include "../../common/embeddedCommConstants.hpp"
+#include "embeddedCommErrors.hpp"
+#include "embeddedCommChecksum.hpp"
+#include "embeddedCommConstants.hpp"
 
 class GenericSlave {
 public:

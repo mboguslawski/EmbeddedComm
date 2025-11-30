@@ -40,7 +40,7 @@ add_executable(pico_master_i2c picoMasterI2C.cpp )
 pico_set_program_name(pico_master_i2c "pico_master_i2c")
 pico_set_program_version(pico_master_i2c "0.1")
 
-add_subdirectory(lib/EmbeddedComm/src/master/picoMasterI2C)
+add_subdirectory(lib/EmbeddedComm/src/i2c/picoMasterI2C)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(pico_master_i2c 0)

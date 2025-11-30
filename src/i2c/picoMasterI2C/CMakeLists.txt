@@ -4,7 +4,7 @@ add_library(picoMasterI2C STATIC
 
 target_include_directories(picoMasterI2C PUBLIC
 	${CMAKE_CURRENT_LIST_DIR}
-	../GenericMaster/
+	../../
 )
 
 target_link_libraries(picoMasterI2C PUBLIC
