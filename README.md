@@ -6,6 +6,7 @@ Copyright (C) 2025 Mateusz Bogusławski, E: mateusz.boguslawski@ibnet.pl
 
 # EmbeddedComm
 
+**Supports only Half-Duplex** \
 **Memory-Based Master-Slave Communication Protocol for Microcontrollers**  
 
 Supports one master and multiple slaves for memory read/write operations.
@@ -82,7 +83,7 @@ Data received by the slave is stored in its receive buffer. The last byte receiv
 ```text
 Master                               Slave
   |                                    |
-  |---[ Address | Data | Checksum ]--->|
+  |>>>[ Address | Data | Checksum ]>>>>|
   |                                    |
 ```
 
@@ -91,11 +92,11 @@ Master                               Slave
 ```text
 Master                               Slave
   |                                    |
-  |---[ Address | Data | Checksum ]--->|
+  |>>>[ Address | Data | Checksum ]>>>>|
   |                                    |
-  |---[ Address = 0x0 | Checksum ]---->|
+  |>>>[ Address = 0x0 | Checksum ]>>>>>|
   |                                    |
-  |<-----[ Slave's Status Byte ]-------|
+  |<<<<<<[ Slave's Status Byte ]<<<<<<<|
   |                                    |
 ```
 
@@ -131,26 +132,26 @@ The slave transfers data to the master starting from the memory location specifi
 ```text
 Master                        Slave
   |                             |
-  |---[ Address | Checksum ]--->|
+  |>>>[ Address | Checksum ]>>>>|
   |                             |
-  |<----------[ Data ]----------|
+  |<<<<<<<<<<<[ Data ]<<<<<<<<<<|
   |                             |
 ```
 **Read Sequence Diagram (with checksum check and status read):**
 ```text
 Master                            Slave
   |                                 |
-  |-----[ Address | Checksum ]----->|
+  |>>>>>[ Address | Checksum ]>>>>>>|
   |                                 |
-  |<------------[ Data ]------------|
+  |<<<<<<<<<<<<<[ Data ]<<<<<<<<<<<<|
   |                                 |
-  |--[ Address = 0x1 | Checksum ]-->|
+  |>>[ Address = 0x1 | Checksum ]>>>|
   |                                 |
-  |<-[ Slave's Transmit Checksum ]--|
+  |<<[ Slave's Transmit Checksum ]<<|
   |                                 |
-  |--[ Address = 0x0 | Checksum ]-->|
+  |>>[ Address = 0x0 | Checksum ]>>>|
   |                                 |
-  |<----[ Slave's Status Byte ]-----|
+  |<<<<<[ Slave's Status Byte ]<<<<<|
   |                                 |
 ```
 
