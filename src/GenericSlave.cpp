@@ -31,7 +31,8 @@ GenericSlave::GenericSlave():
 	memoryAddress(0),
 	byteCounter(0),
 	currentState(STATE_IDLE),
-	checksum(0)
+	checksum(0),
+	moveFromRBuffer(0)
 {}
 
 void GenericSlave::initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
@@ -44,11 +45,18 @@ void GenericSlave::initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBu
 	tChecksumByte = memory + DEFAULT_T_CHECKSUM_BYTE_ADDRESS;
 }
 
+void GenericSlave::process() {
+	if (moveFromRBuffer) {
+		writeMemory();
+		moveFromRBuffer = 0;
+	}
+}
+
 // Move received data from master to memory.
 void GenericSlave::writeMemory() {
 
 	// Copy data from rBuffer to memory
-	if ( (currentState == STATE_R_DATA) && ((*statusByte) == CommStatus::OK) ) {
+	if ( ((*statusByte) == CommStatus::OK) ) {
 		// Check data integrity (compare checksum)
 		// Last byte send by master is checksum
 		if (checksum != rBuffer[byteCounter - 1]) {
@@ -81,7 +89,7 @@ void GenericSlave::changeTransferState(transferState newState) {
 	case STATE_IDLE:
 		// Receicing data finished, move data from receive buffer to memory.
 		if (currentState == STATE_R_DATA) {
-			writeMemory();
+			moveFromRBuffer = true;
 		
 		// Sending data finished, set transmit checksum byte value.
 		} else if (currentState == STATE_T_DATA) {

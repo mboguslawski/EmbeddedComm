@@ -44,6 +44,9 @@ public:
 	// Handle byte request according to EmbeddedComm protocol. Return byte to send out.
 	uint8_t readHandler();
 
+	// Need to be called frequentlly, manages potentially time-consuming task (eg. moving data from rBuffer to memory).
+	void process();
+
 private:
 	
 	// Possible transfer states
@@ -79,6 +82,7 @@ private:
 	volatile uint32_t byteCounter; // Helper value used during reads and writes to keep track of number of bytes.
 	volatile transferState currentState; // Current transfer state, different action will take place in according to this value.
 	volatile uint8_t checksum; // Currently calculated checksum.
+	volatile bool moveFromRBuffer; // Flag marking if bytes need to be moved from rBuffer to memory. 
 };
 
 // Set given error flag in status register
