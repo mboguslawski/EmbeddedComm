@@ -19,8 +19,6 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 
 #pragma once
 
-namespace EmbeddedComm {
-
 // Calculate CRC8 (see https://en.wikipedia.org/wiki/Cyclic_redundancy_check)
 // using iterative method.
 inline uint8_t calculateChecksumIt(uint8_t checksum, uint8_t data) {
@@ -51,4 +49,3 @@ inline uint8_t calculateChecksum(uint8_t *data, uint32_t size) {
 	return calculateChecksumAppend(data, size, 0);
 }
 
-}

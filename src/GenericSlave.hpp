@@ -24,22 +24,24 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 #include <string.h>
 #include <cstdint>
 
-#include "embeddedCommErrors.hpp"
-#include "embeddedCommChecksum.hpp"
-#include "embeddedCommConstants.hpp"
+#include "CommStatus.hpp"
+#include "CommChecksum.hpp"
+#include "CommConstants.hpp"
 
 class GenericSlave {
 public:
 	GenericSlave();
 
-	// Pass both memory and receive buffer memory spaces which must be already reserved.
-	void initialize(uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize);
+	// Pass pointer to buffer which will be used as memory.
+	void initialize(uint8_t *memory, uint32_t memorySize);
+
+	// Enabling backups will restore previous data when corrupted during transfer.
+	// Pass pointer to buffer which will be used to store memory backup.
+	// After memory backups are enabled, maximum write size is restricted by backupBufferSIze
+	void enableMemBackups(uint8_t *backupBuffer, uint32_t backupBufferSize);
 
 	// Handle received byte according to EmbeddedComm protocol.
 	void writeHandler(uint8_t receivedByte);
-	
-	// Handle received stop signal (end of current transaction) according to EmbeddedComm protocol.
-	void stopHandler();
 
 	// Handle byte request according to EmbeddedComm protocol. Return byte to send out.
 	uint8_t readHandler();
@@ -48,44 +50,20 @@ public:
 	void process();
 
 private:
-	
-	// Possible transfer states
-	enum transferState {
-		STATE_IDLE,             // Idle, ready for new transfer
-		STATE_R_ADDRESS,        // Receiving memory address
-		STATE_R_DATA,           // Receiving data bytes
-		STATE_T_DATA,           // Transmitting data
-	};
+	// Resets internal values to prepare for next transfer
+	void reset();
 
-	// Set error flag in slave's status byte.
-	inline void setErrorFlag(uint8_t error);
-
-	// Put data from receive buffer to memory at location pointed by memoryAddress. 
-	void writeMemory();
-
-	// Set memoryAddress to first four bytes of receive buffer.
-	void writeMemoryAddress();
-
-	// Change state and set member variables to match it.
-	void changeTransferState(transferState newState);
-	
-	// Put byte to write buffer on first free spot.
-	void writeBuffer(uint8_t byte);
+	//
+	void restoreBackup();
 
 	uint8_t *memory; // Pointer to device memory reserved for slave's memory.
-	uint8_t *rBuffer; // Pointer to device memory reserved for slave's receive buffer.
-	uint8_t *statusByte; // &memory[STATUS_BYTE_ADDRESS]
-	uint8_t *tChecksumByte; // &memory[TCHECKSUM_BYTE_ADDRESS]
-	uint32_t rBufferSize; // Bytes
+	uint8_t *backupBuffer; // Pointer to device memory reserved for slave's receive buffer.
+	uint32_t backupBufferSize; // Bytes
 	uint32_t memorySize; // Bytes
 	volatile uint32_t memoryAddress; // Current memory address used for write/read operations.
+	volatile uint32_t dataLength;
 	volatile uint32_t byteCounter; // Helper value used during reads and writes to keep track of number of bytes.
-	volatile transferState currentState; // Current transfer state, different action will take place in according to this value.
-	volatile uint8_t checksum; // Currently calculated checksum.
-	volatile bool moveFromRBuffer; // Flag marking if bytes need to be moved from rBuffer to memory. 
+	volatile uint8_t checksum;
+	volatile StatusValue statusValue;
+	volatile bool restoreBackupPending;
 };
-
-// Set given error flag in status register
-void GenericSlave::setErrorFlag(uint8_t error) {
-	(*statusByte) |= error;
-} 
