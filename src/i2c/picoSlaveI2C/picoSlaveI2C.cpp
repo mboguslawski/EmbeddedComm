@@ -46,11 +46,6 @@ void I2CInterruptHandler(i2c_inst_t *i2c, i2c_slave_event_t event) {
 	case I2C_SLAVE_REQUEST:
 		i2c_write_byte_raw(i2c, context->readHandler());
 		break;
-	
-	// Master has signalled Stop or Restart
-	case I2C_SLAVE_FINISH:
-		context->stopHandler();
-		break;
 
 	default:
 		break;
@@ -69,7 +64,7 @@ picoSlaveI2C::~picoSlaveI2C() {
 	}
 }
 
-void picoSlaveI2C::initialize(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKHz, uint8_t i2c_address, uint8_t *memory, uint32_t memorySize, uint8_t *rBuffer, uint32_t rBufferSize) {
+void picoSlaveI2C::initialize(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t i2cFreqKHz, uint8_t i2c_address, uint8_t *memory, uint32_t memorySize) {
 	// Initialize SDA pin
 	gpio_init(sda);
 	gpio_set_function(sda, GPIO_FUNC_I2C);
@@ -91,5 +86,5 @@ void picoSlaveI2C::initialize(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_
 		ContextI2C1 = this;
 	}
 
-	GenericSlave::initialize(memory, memorySize, rBuffer, rBufferSize);
+	GenericSlave::initialize(memory, memorySize);
 }
