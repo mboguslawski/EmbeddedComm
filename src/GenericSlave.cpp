@@ -18,8 +18,7 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 */
 
 #include "GenericSlave.hpp"
-#include <stdlib.h>
-#include <iostream>
+
 GenericSlave::GenericSlave():
 	memory(nullptr),
 	backupBuffer(nullptr),
@@ -55,7 +54,6 @@ void GenericSlave::process() {
 
 	if (statusValue == Busy) {
 		for (uint32_t i = 0; i < currentNumberOfMemoryChangeCallbacks; i++) {
-			printf("memory change callback at %u %u\n", i, memoryChangeCallbacks[i].callback);
 			if ( (pendingCallbacks[i]) && (memoryChangeCallbacks[i].callback != nullptr) ) {
 				memoryChangeCallbacks[i].callback();
 				pendingCallbacks[i] = false;
@@ -218,13 +216,16 @@ void GenericSlave::receiveData(uint8_t receivedByte) {
 			
 		backupBuffer[writeAddress - memoryAddress] = memory[writeAddress];
 	}
-		
+	
+	bool change = (receivedByte != memory[writeAddress]);
+
 	memory[writeAddress] = receivedByte;
 
-	for (uint32_t i = 0; i < currentNumberOfMemoryChangeCallbacks; i++) {
-		if (memoryChangeCallbacks[i].memoryAddress == writeAddress) {
-			pendingCallbacks[i] = true;
-			printf("callback %u is now true\n", i);
+	if (change) {
+		for (uint32_t i = 0; i < currentNumberOfMemoryChangeCallbacks; i++) {
+			if (memoryChangeCallbacks[i].memoryAddress == writeAddress) {
+				pendingCallbacks[i] = true;
+			}
 		}
 	}
 }
