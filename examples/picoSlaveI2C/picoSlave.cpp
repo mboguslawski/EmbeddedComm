@@ -27,20 +27,38 @@ static const uint I2C_SLAVE_ADDRESS = 0x17;
 static const uint SDA = 16; // 4
 static const uint SCL = 17; // 5
 static const uint32_t i2cFrequencyKHz = 1000; // 1MHz
-
+static const uint32_t SET_LED_ADDRESS = 0x0;
+static const uint32_t COUNTER_ADDRESS = 0x1; // Four bytes
 uint8_t memory[64];
 uint8_t buffer[16];
 
+
+void setLed();
+
 int main() {
 	stdio_init_all();
+	gpio_init(PICO_DEFAULT_LED_PIN);
 	gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+	
+	memory[COUNTER_ADDRESS] = 0;
+	memory[COUNTER_ADDRESS+1] = 0;
+	memory[COUNTER_ADDRESS+2] = 0;
+	memory[COUNTER_ADDRESS+3] = 0;
 
 	picoSlaveI2C slave;
 
 	slave.initialize(SCL, SDA, i2c0, i2cFrequencyKHz, I2C_SLAVE_ADDRESS, memory, 64);
 	slave.enableMemBackups(buffer, 16);
+	slave.addMemoryChangeCallback(0, setLed);
 
 	while (true) {
 	  	slave.process();
 	}
+}
+
+void setLed() {
+	gpio_put(PICO_DEFAULT_LED_PIN, memory[SET_LED_ADDRESS]);
+	uint32_t *counter = (uint32_t*)(memory + COUNTER_ADDRESS);
+	
+	(*counter)++;
 }

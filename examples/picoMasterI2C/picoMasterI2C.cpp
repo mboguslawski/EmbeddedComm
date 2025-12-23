@@ -37,33 +37,31 @@ int main() {
 	printf("Pico I2C master example\n");
 	
 	picoMasterI2C master(SCL, SDA, I2C, I2C_FREQ_KHz);
-
-	uint8_t buffer[128] = {}; // Buffer for writing/reading data
 	StatusValue status;
 	
-	while (true) {
-		// Increment each value in buffer.
-		for (uint32_t i = 0; i < 16; i++) {
-			buffer[i]++;
-		}
+	uint8_t led = 0;
+	uint8_t dataBuffer[5];
 
-		status = master.write(SLAVE_I2C_ADDRESS, 0, buffer, 16, true);
-		printf("Write status: %02x\n", status);
+	while (true) {
+		// Toggle state
+		led = (led == 0);
+
+		// Set slave's led state
+		status = master.write(SLAVE_I2C_ADDRESS, 0, &led, 1);
+		printf("Write status: %02xh\n", status);
 
 		while ((status = master.readStatus(SLAVE_I2C_ADDRESS)) & Busy) {
-		 	printf("waiting for Ok(0x80) status, received status =  %02x\n", status);
+		 	printf("waiting for Ok(0x80) status, received status =  %02xh\n", status);
 		 	sleep_ms(100);
 		}
 
-		uint8_t rbuffer[16];
 
-		status = master.read(SLAVE_I2C_ADDRESS, 0, rbuffer, 16);
-		printf("Read status: %02x\n Received data: ", status);
+		// Read slave's led state and counter.
+		status = master.read(SLAVE_I2C_ADDRESS, 0, dataBuffer, 5);
+		printf("Read status: %02xh\n", status);
 		
-		for (uint8_t i = 0; i < 16; i++) {
-			printf("%02x ", rbuffer[i]);
-		}
-		printf("\n");
+		printf("Slave's current led state: %u\n", dataBuffer[0]);
+		printf("Slave's current counter value: %u\n", *(uint32_t*)(dataBuffer+1));
 
 		sleep_ms(1000);
 	}

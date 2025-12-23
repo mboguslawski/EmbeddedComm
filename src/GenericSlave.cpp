@@ -25,12 +25,18 @@ GenericSlave::GenericSlave():
 	backupBuffer(nullptr),
 	backupBufferSize(0),
 	memorySize(0),
+	currentNumberOfMemoryChangeCallbacks(0),
 	memoryAddress(0),
 	dataLength(0),
 	byteCounter(0),
 	checksum(0),
 	statusValue(Ok)
-{}
+{
+	for (uint32_t i = 0; i < MAX_MEMORY_CHANGE_CALLBACKS; i++) {
+		memoryChangeCallbacks[i] = MemoryChangeCallback();
+		pendingCallbacks[i] = false;
+	}
+}
 
 void GenericSlave::initialize(uint8_t *memory, uint32_t memorySize) {
 	this->memory = memory;
@@ -45,6 +51,21 @@ void GenericSlave::enableMemBackups(uint8_t *backupBuffer, uint32_t backupBuffer
 void GenericSlave::process() {
 	if (restoreBackupPending) {
 		restoreBackup();
+	}
+
+	if (statusValue == Busy) {
+		for (uint32_t i = 0; i < currentNumberOfMemoryChangeCallbacks; i++) {
+			printf("memory change callback at %u %u\n", i, memoryChangeCallbacks[i].callback);
+			if ( (pendingCallbacks[i]) && (memoryChangeCallbacks[i].callback != nullptr) ) {
+				memoryChangeCallbacks[i].callback();
+				pendingCallbacks[i] = false;
+			}
+		}
+
+		statusValue &= ~Busy;
+		if (statusValue == NotUsed) {
+			statusValue = Ok;
+		}
 	}
 }
 
@@ -75,6 +96,10 @@ void GenericSlave::writeHandler(uint8_t receivedByte) {
 	} else if (byteCounter == SLAVE_ADDRESS_SIZE*2 + dataLength) {
 		if (checksum != receivedByte) {
 			setStatusValueFlag(ErrDataCorrupted, &statusValue);
+
+			for (uint32_t i = 0; i < currentNumberOfMemoryChangeCallbacks; i++) {
+				pendingCallbacks[i] = false;
+			}
 		}
 
 	// At this point only read request is acceptable (to read status).
@@ -129,15 +154,23 @@ uint8_t GenericSlave::readHandler() {
 }
 
 void GenericSlave::reset() {
+	if (currentNumberOfMemoryChangeCallbacks > 0) {
+		setStatusValueFlag(Busy, &statusValue);
+	}
+	
 	if (restoreBackupPending) {
 		return;
 	}
-	
+
 	byteCounter = 0;
 	dataLength = 0;
 	memoryAddress = 0;
 	checksum = 0;
-	statusValue = Ok;
+
+	statusValue &= Busy;
+	if (statusValue == 0) {
+		statusValue = Ok;
+	}
 }
 
 void GenericSlave::restoreBackup() {
@@ -187,4 +220,29 @@ void GenericSlave::receiveData(uint8_t receivedByte) {
 	}
 		
 	memory[writeAddress] = receivedByte;
+
+	for (uint32_t i = 0; i < currentNumberOfMemoryChangeCallbacks; i++) {
+		if (memoryChangeCallbacks[i].memoryAddress == writeAddress) {
+			pendingCallbacks[i] = true;
+			printf("callback %u is now true\n", i);
+		}
+	}
 }
+
+bool GenericSlave::addMemoryChangeCallback(uint32_t memoryAddress, CallbackFunction callback) {
+	if (currentNumberOfMemoryChangeCallbacks + 1 >= MAX_MEMORY_CHANGE_CALLBACKS) {
+		return false;
+	}
+
+	memoryChangeCallbacks[currentNumberOfMemoryChangeCallbacks].memoryAddress = memoryAddress; 
+	memoryChangeCallbacks[currentNumberOfMemoryChangeCallbacks].callback = callback;
+
+	currentNumberOfMemoryChangeCallbacks++;
+	
+	return true;
+}
+
+MemoryChangeCallback::MemoryChangeCallback():
+	memoryAddress(0),
+	callback(nullptr)
+{}

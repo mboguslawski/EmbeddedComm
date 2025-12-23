@@ -28,6 +28,17 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 #include "CommChecksum.hpp"
 #include "CommConstants.hpp"
 
+constexpr uint16_t MAX_MEMORY_CHANGE_CALLBACKS = 10;
+
+using CallbackFunction = void(*)();
+
+struct MemoryChangeCallback {
+	MemoryChangeCallback();
+
+	uint32_t memoryAddress;
+	CallbackFunction callback;
+};
+
 class GenericSlave {
 public:
 	GenericSlave();
@@ -45,6 +56,10 @@ public:
 
 	// Handle byte request according to EmbeddedComm protocol. Return byte to send out.
 	uint8_t readHandler();
+
+	// Add memory change callback. Returns false if callback cannot be added due to lack of space.
+	// Keep callbacks fast, because slave has busy status if some callbacks await execution.
+	bool addMemoryChangeCallback(uint32_t memoryAddress, CallbackFunction callback);
 
 	// Need to be called frequentlly, manages potentially time-consuming task (eg. moving data from rBuffer to memory).
 	void process();
@@ -64,8 +79,11 @@ private:
 
 	uint8_t *memory; // Pointer to device memory reserved for slave's memory.
 	uint8_t *backupBuffer; // Pointer to device memory reserved for slave's receive buffer.
+	MemoryChangeCallback memoryChangeCallbacks[MAX_MEMORY_CHANGE_CALLBACKS];
+	bool pendingCallbacks[MAX_MEMORY_CHANGE_CALLBACKS];
 	uint32_t backupBufferSize; // Bytes
 	uint32_t memorySize; // Bytes
+	uint32_t currentNumberOfMemoryChangeCallbacks;
 	volatile uint32_t memoryAddress; // Current memory address used for write/read operations.
 	volatile uint32_t dataLength;
 	volatile uint32_t byteCounter; // Helper value used during reads and writes to keep track of number of bytes.
