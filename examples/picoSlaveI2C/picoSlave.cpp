@@ -28,15 +28,17 @@ static const uint SDA = 16; // 4
 static const uint SCL = 17; // 5
 static const uint32_t i2cFrequencyKHz = 1000; // 1MHz
 
-uint8_t memory[256];
-uint8_t buffer[64];
+uint8_t memory[64];
+uint8_t buffer[16];
 
 int main() {
 	stdio_init_all();
+	gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
 	picoSlaveI2C slave;
 
-	slave.initialize(SCL, SDA, i2c0, i2cFrequencyKHz, I2C_SLAVE_ADDRESS, memory, 256, buffer, 64);
+	slave.initialize(SCL, SDA, i2c0, i2cFrequencyKHz, I2C_SLAVE_ADDRESS, memory, 64);
+	slave.enableMemBackups(buffer, 16);
 
 	while (true) {
 	  	slave.process();

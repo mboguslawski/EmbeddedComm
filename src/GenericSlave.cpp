@@ -18,9 +18,8 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 */
 
 #include "GenericSlave.hpp"
-
 #include <stdlib.h>
-
+#include <iostream>
 GenericSlave::GenericSlave():
 	memory(nullptr),
 	backupBuffer(nullptr),
@@ -50,11 +49,7 @@ void GenericSlave::process() {
 }
 
 // Handle all logic related to slave receiving byte from master.
-void GenericSlave::writeHandler(uint8_t received_byte) {
-	if (statusValue != Ok) {
-		byteCounter++;
-		return;
-	}
+void GenericSlave::writeHandler(uint8_t receivedByte) {
 	
 	// Handle received byte according to protocol
 	// its meaning is known based on byteCounter, 
@@ -62,49 +57,23 @@ void GenericSlave::writeHandler(uint8_t received_byte) {
 
 	// Received byte is a part of transfer size declared by master.
 	if (byteCounter < SLAVE_ADDRESS_SIZE) {
-		dataLength |= (uint32_t)received_byte << byteCounter;
-		checksum = calculateChecksumIt(checksum, received_byte);
-
-		if ( (byteCounter == SLAVE_ADDRESS_SIZE-1)  && (backupBuffer != nullptr) && (dataLength > backupBufferSize) ){
-			setStatusValueFlag(ErrBackupBufferOverflow, &statusValue);
-		}
+		receiveDataLength(receivedByte);
+		checksum = calculateChecksumIt(checksum, receivedByte);
 
 	// Received byte is a part of memory address,
 	// which is the first address from which master will read or to which master will write data.
 	} else if (byteCounter < SLAVE_ADDRESS_SIZE*2) {
-		memoryAddress |= (uint32_t)received_byte << (byteCounter - SLAVE_ADDRESS_SIZE);
-		checksum = calculateChecksumIt(checksum, received_byte);
-
-		if ( (byteCounter == SLAVE_ADDRESS_SIZE*2-1) && (memoryAddress + dataLength >= memorySize) ) {
-			setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
-		}
+		receiveMemoryAddress(receivedByte);
+		checksum = calculateChecksumIt(checksum, receivedByte);
 
 	// Received byte data master writes to slave.
 	} else if (byteCounter < SLAVE_ADDRESS_SIZE*2 + dataLength) {
-		uint32_t writeAddress = memoryAddress + byteCounter - SLAVE_ADDRESS_SIZE*2;
-
-		if (writeAddress >= memorySize) {
-			setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
-			byteCounter++;
-			return;
-		}
-
-		if (backupBuffer != nullptr) {
-			if (writeAddress - memoryAddress >= backupBufferSize) {
-				setStatusValueFlag(ErrBackupBufferOverflow, &statusValue);
-				byteCounter++;
-				return;
-			}
-			
-			backupBuffer[writeAddress - memoryAddress] = memory[writeAddress];
-		}
-		
-		memory[writeAddress] = received_byte;
-		checksum = calculateChecksumIt(checksum, received_byte);
+		receiveData(receivedByte);
+		checksum = calculateChecksumIt(checksum, receivedByte);
 
 	// Received byte is checksum
 	} else if (byteCounter == SLAVE_ADDRESS_SIZE*2 + dataLength) {
-		if (checksum != received_byte) {
+		if (checksum != receivedByte) {
 			setStatusValueFlag(ErrDataCorrupted, &statusValue);
 		}
 
@@ -119,6 +88,7 @@ void GenericSlave::writeHandler(uint8_t received_byte) {
 uint8_t GenericSlave::readHandler() {
 	uint8_t out_byte = 0x0;
 
+	// At this point of transfer master should write dataLength and memorySize
 	if (byteCounter < SLAVE_ADDRESS_SIZE*2) {
 		setStatusValueFlag(ErrInvalidRead, &statusValue);
 	
@@ -139,8 +109,14 @@ uint8_t GenericSlave::readHandler() {
 	// Return checksum byte
 	} else if (byteCounter == SLAVE_ADDRESS_SIZE*2 + dataLength) {
 		out_byte = checksum;
-		
+	
+	// Return status byte
 	} else {
+		if ( (statusValue & ErrDataCorrupted) && (backupBuffer != nullptr) ) {
+			restoreBackupPending = true;
+			setStatusValueFlag(Busy, &statusValue);
+		}
+
 		out_byte = (uint8_t)statusValue;
 
 		reset();
@@ -156,13 +132,6 @@ void GenericSlave::reset() {
 	if (restoreBackupPending) {
 		return;
 	}
-
-	// Do not reset till backup is restored.
-	if ( (statusValue & ErrDataCorrupted) && (backupBuffer != nullptr) ) {
-		setStatusValueFlag(Busy, &statusValue);
-		restoreBackupPending = true;
-		return;
-	}
 	
 	byteCounter = 0;
 	dataLength = 0;
@@ -175,4 +144,47 @@ void GenericSlave::restoreBackup() {
 	memcpy(&memory[memoryAddress], backupBuffer, dataLength);
 	restoreBackupPending = false;
 	reset();
+}
+
+void GenericSlave::receiveDataLength(uint8_t receivedByte) {
+	dataLength |= (uint32_t)receivedByte << (byteCounter);
+	
+	if ( (byteCounter == SLAVE_ADDRESS_SIZE-1)  && (backupBuffer != nullptr) && (dataLength > backupBufferSize) ){
+		setStatusValueFlag(ErrBackupBufferOverflow, &statusValue);
+	}
+}
+
+void GenericSlave::receiveMemoryAddress(uint8_t receivedByte) {
+	memoryAddress |= (uint32_t)receivedByte << (byteCounter - SLAVE_ADDRESS_SIZE);
+
+	if ( (byteCounter == SLAVE_ADDRESS_SIZE*2-1) && (memoryAddress + dataLength >= memorySize) ) {
+		setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
+	}
+}
+
+void GenericSlave::receiveData(uint8_t receivedByte) {
+	// Do not process if any errors occurred.
+	if (statusValue != Ok) {
+		return;
+	}
+	
+	uint32_t writeAddress = memoryAddress + byteCounter - SLAVE_ADDRESS_SIZE*2;
+
+	if (writeAddress >= memorySize) {
+		setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
+		byteCounter++;
+		return;
+	}
+
+	if (backupBuffer != nullptr) {
+		if (writeAddress - memoryAddress >= backupBufferSize) {
+			setStatusValueFlag(ErrBackupBufferOverflow, &statusValue);
+			byteCounter++;
+			return;
+		}
+			
+		backupBuffer[writeAddress - memoryAddress] = memory[writeAddress];
+	}
+		
+	memory[writeAddress] = receivedByte;
 }

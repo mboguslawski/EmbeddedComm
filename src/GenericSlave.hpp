@@ -53,8 +53,14 @@ private:
 	// Resets internal values to prepare for next transfer
 	void reset();
 
-	//
+	// Restore backup from backupBuffer
 	void restoreBackup();
+
+	void receiveMemoryAddress(uint8_t receivedByte);
+
+	void receiveDataLength(uint8_t receivedByte);
+
+	void receiveData(uint8_t receivedByte);
 
 	uint8_t *memory; // Pointer to device memory reserved for slave's memory.
 	uint8_t *backupBuffer; // Pointer to device memory reserved for slave's receive buffer.

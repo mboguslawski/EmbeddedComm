@@ -38,47 +38,32 @@ int main() {
 	
 	picoMasterI2C master(SCL, SDA, I2C, I2C_FREQ_KHz);
 
-	uint8_t buffer[16] = {}; // Buffer for writing/reading data
-	uint8_t status;
-	uint8_t slave_tchecksum;
+	uint8_t buffer[128] = {}; // Buffer for writing/reading data
+	StatusValue status;
 	
-	int i = 0;
 	while (true) {
-		printf("%d\n", i);
-		i++;
-		
 		// Increment each value in buffer.
 		for (uint32_t i = 0; i < 16; i++) {
-			buffer[i] += 1;
+			buffer[i]++;
 		}
 
-		// Write new data to slave and check status
-		master.write(SLAVE_I2C_ADDRESS, 2, buffer, 16);
-		master.readStatus(SLAVE_I2C_ADDRESS, &status);
-		printf("Write status %u\n", status);
+		status = master.write(SLAVE_I2C_ADDRESS, 0, buffer, 16, true);
+		printf("Write status: %02x\n", status);
 
-		// Erase values in the buffer, to show,
-		// that data is read from slave and not remembered by master.
-		for (uint32_t i = 0; i < 16; i++) {
-			buffer[i] = 0;
+		while ((status = master.readStatus(SLAVE_I2C_ADDRESS)) & Busy) {
+		 	printf("waiting for Ok(0x80) status, received status =  %02x\n", status);
+		 	sleep_ms(100);
 		}
 
-		// Read 16 bytes that were previously written to slave's memory;
-		master.read(SLAVE_I2C_ADDRESS, 2, buffer, 16);
-		master.readTChecksum(SLAVE_I2C_ADDRESS, &slave_tchecksum);
-		master.readStatus(SLAVE_I2C_ADDRESS, &status);
-		printf("Read status %u\n", status);
+		uint8_t rbuffer[16];
 
-		printf("Data:\n");
-		for (uint32_t i = 0; i < 16; i++) {
-			printf("%u %u\n", i, buffer[i]);
+		status = master.read(SLAVE_I2C_ADDRESS, 0, rbuffer, 16);
+		printf("Read status: %02x\n Received data: ", status);
+		
+		for (uint8_t i = 0; i < 16; i++) {
+			printf("%02x ", rbuffer[i]);
 		}
-
-		if (EmbeddedComm::calculateChecksum(buffer, 16) == slave_tchecksum) {
-			printf("Checksum matches\n");
-		} else {
-			printf("Checksum does not match!!!\n");
-		}
+		printf("\n");
 
 		sleep_ms(1000);
 	}
