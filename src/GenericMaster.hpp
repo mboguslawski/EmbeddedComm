@@ -37,7 +37,7 @@ public:
 	// Write bytes to (pointed by sinfo parameter) slave's memory starting with given address.
 	// Keep in mind that write to slave is limited by its receive buffer capacity (minus one byte to account for checksum).
 	// As return value, pass code returned by some hardware-specific write function from child class. 
-	StatusValue write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize, bool falseChecksum = false);
+	StatusValue write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize);
 	
 	// Read bytes from (pointed by sinfo parameter) slave's memory starting with given address,
 	// load data into buffer. Ensure buffer has atleast readSize bytes.
@@ -59,7 +59,7 @@ template <typename slaveInfo>
 GenericMaster<slaveInfo>::GenericMaster() {}
 
 template <typename slaveInfo>
-StatusValue GenericMaster<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize, bool falseChecksum) {
+StatusValue GenericMaster<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAddress, uint8_t *data, uint32_t writeSize) {
 	// four bytes for data length + four bytes for address + writeSize bytes for data + one byte for checksum.
 	const uint32_t messageBufferSize = writeSize + SLAVE_ADDRESS_SIZE * 2 + CHECKSUM_SIZE;
 	uint8_t messageBuffer[messageBufferSize];
