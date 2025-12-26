@@ -22,7 +22,6 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 #pragma once
 
 #include <string.h>
-#include <iostream>
 
 #include "CommStatus.hpp"
 #include "CommChecksum.hpp"
@@ -77,19 +76,13 @@ StatusValue GenericMaster<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAdd
 
 	// Attach checksum.
 	messageBuffer[messageBufferSize - 1] = calculateChecksum(messageBuffer, messageBufferSize-1);
-	if (falseChecksum) {
-		messageBuffer[messageBufferSize - 1]++;
-	}
 
 	if (writeBytes(sinfo, messageBuffer, messageBufferSize) < 0) {
-		printf("write failed\n");
 		return 0;
 	}
 
 	StatusValue status;
 	if (readBytes(sinfo, &status, 1) < 0) {
-		printf("read failed\n");
-
 		return 0;
 	}
 
@@ -104,27 +97,27 @@ StatusValue GenericMaster<slaveInfo>::read(slaveInfo &sinfo, uint32_t memoryAddr
 	memcpy(messageBuffer, &readSize, SLAVE_ADDRESS_SIZE);
 	memcpy(messageBuffer + SLAVE_ADDRESS_SIZE, &memoryAddress, SLAVE_ADDRESS_SIZE);
 
-	writeBytes(sinfo, messageBuffer, messageBufferSize);
+	if (writeBytes(sinfo, messageBuffer, messageBufferSize) < 0) {
+		return 0;
+	} 
 
 	// Read data from slave into read buffer
-	readBytes(sinfo, buffer, readSize);
-
-	uint8_t receivedChecksum;
-	readBytes(sinfo, &receivedChecksum, 1);
-
-	uint8_t checksum = calculateChecksum(messageBuffer, messageBufferSize);
-
-	if (calculateChecksumAppend(buffer, readSize, checksum) != receivedChecksum) {
-		StatusValue status;
-		readBytes(sinfo, &status, 1);
-		return ErrDataCorrupted;
+	if (readBytes(sinfo, buffer, readSize) < 0) {
+		return 0;
 	}
 
-	StatusValue status;
-	if (readBytes(sinfo, &status, 1) < 0) {
-		printf("read failed\n");
-
+	uint8_t buff[2];
+	// Read data from slave into read buffer
+	if (readBytes(sinfo, buff, 2) < 0) {
 		return 0;
+	}
+
+	uint8_t receivedChecksum = buff[0];
+	StatusValue status = (StatusValue)buff[1];
+
+	uint8_t checksum = calculateChecksum(messageBuffer, messageBufferSize);
+	if (calculateChecksumAppend(buffer, readSize, checksum) != receivedChecksum) {
+		return ErrDataCorrupted;
 	}
 
 	return status;
