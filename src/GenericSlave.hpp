@@ -68,7 +68,7 @@ protected:
 
 	// Method invoked when master sends dataLength and memoryAddress with read flag set.
 	// Not needed if child class can figure out when to send data on their own, for example i2c protocol
-	// carrries r/w flag itself.
+	// carrries r/w flag itself. Do not do any time consuming operations here.
 	virtual void sendToMaster(uint32_t nBytes) {};
 
 private:
@@ -98,5 +98,4 @@ private:
 	volatile StatusValue statusValue;
 	volatile bool restoreBackupPending;
 	volatile bool readMode;
-	volatile bool invokeSendToMaster;
 };

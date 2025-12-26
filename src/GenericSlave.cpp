@@ -30,8 +30,7 @@ GenericSlave::GenericSlave():
 	byteCounter(0),
 	checksum(0),
 	statusValue(Ok),
-	readMode(false),
-	invokeSendToMaster(false)
+	readMode(false)
 {
 	for (uint32_t i = 0; i < MAX_MEMORY_CHANGE_CALLBACKS; i++) {
 		memoryChangeCallbacks[i] = MemoryChangeCallback();
@@ -52,11 +51,6 @@ void GenericSlave::enableMemBackups(uint8_t *backupBuffer, uint32_t backupBuffer
 void GenericSlave::process() {
 	if (restoreBackupPending) {
 		restoreBackup();
-	}
-
-	if (invokeSendToMaster) {
-		sendToMaster(dataLength);
-		invokeSendToMaster = false; 
 	}
 
 	if (statusValue == Busy) {
@@ -107,6 +101,8 @@ void GenericSlave::writeHandler(uint8_t receivedByte) {
 			}
 		}
 
+		sendToMaster(1);
+
 	// At this point only read request is acceptable (to read status).
 	} else {
 		setStatusValueFlag(ErrInvalidWrite, &statusValue);
@@ -140,6 +136,10 @@ uint8_t GenericSlave::readHandler() {
 			out_byte = memory[readAddress];
 		}
 	
+		if (byteCounter == SLAVE_ADDRESS_SIZE*2+dataLength-1) {
+			sendToMaster(2);
+		}
+
 	// Return checksum byte
 	} else if (byteCounter == SLAVE_ADDRESS_SIZE*2 + dataLength) {
 		out_byte = checksum;
@@ -208,7 +208,7 @@ void GenericSlave::receiveMemoryAddress(uint8_t receivedByte) {
 
 	if  (byteCounter == SLAVE_ADDRESS_SIZE*2-1) {
 		if (readMode) {
-			invokeSendToMaster = true;
+			sendToMaster(dataLength);
 		}
 
 		if ( (memoryAddress + dataLength >= memorySize) ) {
