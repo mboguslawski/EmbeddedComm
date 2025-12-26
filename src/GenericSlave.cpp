@@ -29,7 +29,9 @@ GenericSlave::GenericSlave():
 	dataLength(0),
 	byteCounter(0),
 	checksum(0),
-	statusValue(Ok)
+	statusValue(Ok),
+	readMode(false),
+	invokeSendToMaster(false)
 {
 	for (uint32_t i = 0; i < MAX_MEMORY_CHANGE_CALLBACKS; i++) {
 		memoryChangeCallbacks[i] = MemoryChangeCallback();
@@ -52,6 +54,11 @@ void GenericSlave::process() {
 		restoreBackup();
 	}
 
+	if (invokeSendToMaster) {
+		sendToMaster(dataLength);
+		invokeSendToMaster = false; 
+	}
+
 	if (statusValue == Busy) {
 		for (uint32_t i = 0; i < currentNumberOfMemoryChangeCallbacks; i++) {
 			if ( (pendingCallbacks[i]) && (memoryChangeCallbacks[i].callback != nullptr) ) {
@@ -69,7 +76,7 @@ void GenericSlave::process() {
 
 // Handle all logic related to slave receiving byte from master.
 void GenericSlave::writeHandler(uint8_t receivedByte) {
-	
+
 	// Handle received byte according to protocol
 	// its meaning is known based on byteCounter, 
 	// which tracks how many bytes where transferred since last reset.
@@ -118,6 +125,10 @@ uint8_t GenericSlave::readHandler() {
 	// Return byte read from memory
 	} else if (byteCounter < SLAVE_ADDRESS_SIZE*2 + dataLength) {
 		uint32_t readAddress = byteCounter - SLAVE_ADDRESS_SIZE*2 + memoryAddress;
+
+		if (!readMode) {
+			setStatusValueFlag(ErrInvalidRead, &statusValue);
+		}
 
 		if (readAddress >= memorySize) {
 			setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
@@ -180,20 +191,37 @@ void GenericSlave::restoreBackup() {
 void GenericSlave::receiveDataLength(uint8_t receivedByte) {
 	dataLength |= (uint32_t)receivedByte << (byteCounter * 8);
 	
-	if ( (byteCounter == SLAVE_ADDRESS_SIZE-1)  && (backupBuffer != nullptr) && (dataLength > backupBufferSize) ){
-		setStatusValueFlag(ErrBackupBufferOverflow, &statusValue);
+	if (byteCounter == SLAVE_ADDRESS_SIZE-1) {
+		readMode = dataLength & (1 << 31); // Capture read flag
+		dataLength &= ~(1 << 31); // Clear read flag to store dataLength
+		
+		// Check for buckup buffer overflow (write operations only).
+		if ( (backupBuffer != nullptr) && (!readMode) && (dataLength > backupBufferSize) ) {
+			setStatusValueFlag(ErrBackupBufferOverflow, &statusValue);
+		}
 	}
+	
 }
 
 void GenericSlave::receiveMemoryAddress(uint8_t receivedByte) {
 	memoryAddress |= (uint32_t)receivedByte << ( (byteCounter - SLAVE_ADDRESS_SIZE) * 8 );
 
-	if ( (byteCounter == SLAVE_ADDRESS_SIZE*2-1) && (memoryAddress + dataLength >= memorySize) ) {
-		setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
+	if  (byteCounter == SLAVE_ADDRESS_SIZE*2-1) {
+		if (readMode) {
+			invokeSendToMaster = true;
+		}
+
+		if ( (memoryAddress + dataLength >= memorySize) ) {
+			setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
+		}
 	}
 }
 
 void GenericSlave::receiveData(uint8_t receivedByte) {
+	if (readMode) {
+		setStatusValueFlag(ErrInvalidWrite, &statusValue);
+	}
+	
 	// Do not process if any errors occurred.
 	if (statusValue != Ok) {
 		return;

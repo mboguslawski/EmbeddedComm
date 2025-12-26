@@ -269,10 +269,23 @@ The EmbeddedComm protocol is a binary, master-slave communication standard desig
 | Type | Size | Description |
 | :--- | :--- | :--- |
 | **Address** | 4 Bytes | 32-bit Memory Address. |
-| **Length** | 4 Bytes | 32-bit Data Length. |
+| **Length** | 4 Bytes | 32-bit Data Length. Bit 31 (MSB): Read Flag (1 = Read, 0 = Write). |
 | **Checksum** | 1 Byte | 8-bit Checksum (Algorithm defined by implementation). |
 | **Status** | 1 Byte | 8-bit Status Register (Bitmap). |
 
+**Length field visualization:**
+
+```
+31                                                            0
++---+---------------------------------------------------------+
+| R |                      Data Length                        |
++---+---------------------------------------------------------+
+  ^                             ^
+  |                             |
+  +-- Read Flag                 +-- Actual Length
+      1: Master Read
+      0: Master Write
+```
 ---
 
 ## 1. Write Transaction
@@ -280,7 +293,7 @@ Used to write $N$ bytes of data to the slave.
 
 **Sequence:**
 1.  **Master sends Header:**
-    * `Data Length` (4 Bytes)
+    * `Data Length. Bit 31 is 0 (ReadFlag)` (4 Bytes) 
     * `Memory Address` (4 Bytes)
 2.  **Master sends Payload:**
     * `Data` ($N$ Bytes)
@@ -289,7 +302,7 @@ Used to write $N$ bytes of data to the slave.
 4.  **Slave responds:**
     * `Status` (1 Byte) - Returns `Ok` (0x80) or Error Flags.
 ```
-Master >>> [Length (4B)] [Address (4B)] [Data (N Bytes)] [Checksum (1B)] >>> Slave
+Master >>> [Length. Bit 31 is 0. (4B)] [Address (4B)] [Data (N Bytes)] [Checksum (1B)] >>> Slave
 Master <<< [Status (1B)] <<< Slave
 ```
 ---
@@ -299,7 +312,7 @@ Used to read $N$ bytes of data from the slave.
 
 **Sequence:**
 1.  **Master sends Header:**
-    * `Read Size` (4 Bytes)
+    * `Read Size. Bit 31 is 1 (ReadFlag)` (4 Bytes)
     * `Memory Address` (4 Bytes)
 2.  **Slave sends Payload:**
     * `Data` ($N$ Bytes)
@@ -309,7 +322,7 @@ Used to read $N$ bytes of data from the slave.
     * `Status` (1 Byte) - Returns `Ok` (0x80) or Error Flags.
 
 ```
-Master >>> [Length (4B)] [Address (4B)] >>> Slave
+Master >>> [Length. Bit 31 is 1. (4B)] [Address (4B)] >>> Slave
 Master <<< [Data (N Bytes)] [Checksum (1B)] [Status (1B)] <<< Slave
 ```
 

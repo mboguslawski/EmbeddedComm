@@ -64,6 +64,7 @@ StatusValue GenericMaster<slaveInfo>::write(slaveInfo &sinfo, uint32_t memoryAdd
 	uint8_t messageBuffer[messageBufferSize];
 
 	// Data length
+	writeSize &= ~(1 << 31); // Ensure msb is cleared (read flag).
 	memcpy(messageBuffer, &writeSize, SLAVE_ADDRESS_SIZE);
 
 	// Memory address
@@ -94,7 +95,10 @@ StatusValue GenericMaster<slaveInfo>::read(slaveInfo &sinfo, uint32_t memoryAddr
 	const uint32_t messageBufferSize = SLAVE_ADDRESS_SIZE * 2;
 	uint8_t messageBuffer[messageBufferSize];
 
+	readSize |= (1 << 31); // Set read flag.
 	memcpy(messageBuffer, &readSize, SLAVE_ADDRESS_SIZE);
+	readSize &= ~(1 << 31); // Clear to store read size only.
+
 	memcpy(messageBuffer + SLAVE_ADDRESS_SIZE, &memoryAddress, SLAVE_ADDRESS_SIZE);
 
 	if (writeBytes(sinfo, messageBuffer, messageBufferSize) < 0) {
