@@ -18,7 +18,9 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 */
 
 #pragma once
-	
+
+#include <cstdint>
+
 using StatusValue = uint8_t;
 
 // All statuses have values which are power of 2, so they can be used as flags

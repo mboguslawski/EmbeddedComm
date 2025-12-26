@@ -19,6 +19,8 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 
 #pragma once
 
+#include <cstdint>
+
 // Calculate CRC8 (see https://en.wikipedia.org/wiki/Cyclic_redundancy_check)
 // using iterative method.
 inline uint8_t calculateChecksumIt(uint8_t checksum, uint8_t data) {

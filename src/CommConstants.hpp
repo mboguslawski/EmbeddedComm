@@ -19,6 +19,8 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 
 #pragma once
 
+#include <cstdint>
+
 constexpr uint32_t SLAVE_ADDRESS_SIZE = 4; // Size of slave's memory addresses in bytes.
 constexpr uint32_t CHECKSUM_SIZE = 1;
 	
