@@ -38,11 +38,11 @@ picoMasterI2C::picoMasterI2C(uint8_t scl, uint8_t sda, i2c_inst_t *i2c, uint32_t
 }
 
 int picoMasterI2C::readBytes(uint8_t &slaveAddress, uint8_t *byteArray, uint32_t numberOfBytes) {
-	//return i2c_read_blocking_until(i2cInstance, slaveAddress, byteArray, numberOfBytes, false, 1000);	
-	return i2c_read_blocking(i2cInstance, slaveAddress, byteArray, numberOfBytes, false);	
+	// One second timeout
+	return i2c_read_timeout_us(i2cInstance, slaveAddress, byteArray, numberOfBytes, false, 1000000);	
 }
 
 int picoMasterI2C::writeBytes(uint8_t &slaveAddress, uint8_t *byteArray, uint32_t numberOfBytes) {
-	//return i2c_write_blocking_until(i2cInstance, slaveAddress, byteArray, numberOfBytes, false, 1000);	
-	return i2c_write_blocking(i2cInstance, slaveAddress, byteArray, numberOfBytes, false);	
+	// One second timeout
+	return i2c_write_timeout_us(i2cInstance, slaveAddress, byteArray, numberOfBytes, false, 1000000);	
 }
