@@ -178,7 +178,7 @@ void GenericSlave::restoreBackup() {
 }
 
 void GenericSlave::receiveDataLength(uint8_t receivedByte) {
-	dataLength |= (uint32_t)receivedByte << (byteCounter);
+	dataLength |= (uint32_t)receivedByte << (byteCounter * 8);
 	
 	if ( (byteCounter == SLAVE_ADDRESS_SIZE-1)  && (backupBuffer != nullptr) && (dataLength > backupBufferSize) ){
 		setStatusValueFlag(ErrBackupBufferOverflow, &statusValue);
@@ -186,7 +186,7 @@ void GenericSlave::receiveDataLength(uint8_t receivedByte) {
 }
 
 void GenericSlave::receiveMemoryAddress(uint8_t receivedByte) {
-	memoryAddress |= (uint32_t)receivedByte << (byteCounter - SLAVE_ADDRESS_SIZE);
+	memoryAddress |= (uint32_t)receivedByte << ( (byteCounter - SLAVE_ADDRESS_SIZE) * 8 );
 
 	if ( (byteCounter == SLAVE_ADDRESS_SIZE*2-1) && (memoryAddress + dataLength >= memorySize) ) {
 		setStatusValueFlag(ErrMemoryOutOfRange, &statusValue);
