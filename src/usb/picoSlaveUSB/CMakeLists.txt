@@ -1,7 +1,6 @@
 add_library(picoSlaveUSB STATIC
 	../../GenericSlave.cpp
 	picoSlaveUSB.cpp
-	usb_descriptors.c
 )
 
 target_include_directories(picoSlaveUSB PUBLIC

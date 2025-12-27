@@ -37,7 +37,10 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(picoSlaveUSB picoSlaveUSB.cpp )
+add_executable(picoSlaveUSB 
+	picoSlaveUSB.cpp
+	usb_descriptors.c 
+)
 
 pico_set_program_name(picoSlaveUSB "picoSlaveUSB")
 pico_set_program_version(picoSlaveUSB "0.1")
@@ -45,6 +48,15 @@ pico_set_program_version(picoSlaveUSB "0.1")
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(picoSlaveUSB 1)
 pico_enable_stdio_usb(picoSlaveUSB 0)
+
+# Change below values to customize usb descriptors
+target_compile_definitions(picoSlaveUSB PRIVATE
+    USB_DEVICE_VID=0x1234
+    USB_DEVICE_PID=0x1234
+	USB_MANUFACTURER  "mboguslawski"
+	USB_PRODUCT "EmmbeddedComm USB example"
+	USB_SERIAL "000"
+)
 
 add_subdirectory(lib/EmbeddedComm/src/usb/picoSlaveUSB/)
 

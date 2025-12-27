@@ -89,11 +89,18 @@ The device identity is defined in `usb_descriptors.c` (or via preprocessor defin
 * **Endpoints:** Uses Endpoint 1 for Bulk OUT (`0x01`) and Bulk IN (`0x81`).
 * **Packet Size:** 64 bytes (Full Speed).
 
-#### Customizing VID/PID
-You can override the default Vendor and Product IDs in your build configuration or header files:
-* `USB_DEVICE_VID` (Default: `0x1111`)
-* `USB_DEVICE_PID` (Default: `0x1111`)
-
+#### Customizing
+Change below lines in CMakeLists.txt to customize usb descriptors.
+```
+# Change below values to customize usb descriptors
+target_compile_definitions(picoSlaveUSB PRIVATE
+    USB_DEVICE_VID=0x1234
+    USB_DEVICE_PID=0x1234
+	USB_MANUFACTURER  "mboguslawski"
+	USB_PRODUCT "EmmbeddedComm USB example"
+	USB_SERIAL "000"
+)
+```
 
 ### Dependencies
 * **SDK:** `pico-sdk`
