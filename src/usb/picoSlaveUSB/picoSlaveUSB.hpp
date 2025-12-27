@@ -38,6 +38,9 @@ public:
 	// Handles data received from master.
 	void bulkOutHandler(uint8_t itf, uint8_t const* buffer, uint16_t bufsize);
 
+	// Returns pointer to picoSlaveUSB object.
+	static picoSlaveUSB* get();
+
 protected:
 	// Invoked by parent class. Modify bytesToSend value.
 	void sendToMaster(uint32_t nBytes) override;
@@ -52,5 +55,3 @@ private:
 
 	uint32_t bytesToSend;
 };
-
-extern picoSlaveUSB USBSlave;

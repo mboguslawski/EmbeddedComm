@@ -1,7 +1,5 @@
 #include "picoSlaveUSB.hpp"
 
-picoSlaveUSB USBSlave;
-
 picoSlaveUSB::picoSlaveUSB():
 	bytesToSend(0)
 {}
@@ -13,6 +11,11 @@ void picoSlaveUSB::initialize(uint8_t *memory, uint32_t memorySize) {
     tusb_init();
 	
 	GenericSlave::initialize(memory, memorySize);
+}
+
+picoSlaveUSB* picoSlaveUSB::get() {
+    static picoSlaveUSB slaveUSB;
+    return &slaveUSB;
 }
 
 void picoSlaveUSB::process() {
@@ -53,5 +56,5 @@ void picoSlaveUSB::sendToMaster(uint32_t nBytes) {
 }
 
 extern "C" void tud_vendor_rx_cb(uint8_t itf, uint8_t const* buffer, uint16_t bufsize) {
-   USBSlave.bulkOutHandler(itf, buffer, bufsize);
+   picoSlaveUSB::get()->bulkOutHandler(itf, buffer, bufsize);
 }

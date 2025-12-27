@@ -49,7 +49,7 @@ Implements the slave-side driver for the Raspberry Pi Pico (RP2040/RP2350) using
 
 ### Singleton Pattern
 This class is implemented as a strict singleton to ensure exclusive access to the USB hardware.
-* **Instance:** Use the global `USBSlave` object.
+* **Instance:** Use pointer to global object returned by `picoSlaveUSB::get()`.
 * **Restriction:** You cannot create new instances of `picoSlaveUSB`.
 
 ### Initialization

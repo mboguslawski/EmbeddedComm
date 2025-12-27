@@ -28,7 +28,6 @@ static const uint32_t COUNTER_ADDRESS = 2001; // Four bytes
 uint8_t memory[2048];
 uint8_t buffer[16];
 
-extern void foo();
 void setLed();
 
 int main() {
@@ -43,12 +42,14 @@ int main() {
 	memory[COUNTER_ADDRESS+2] = 0;
 	memory[COUNTER_ADDRESS+3] = 0;
 
-	USBSlave.initialize(memory, 2048);
-	USBSlave.enableMemBackups(buffer, 16);
-	USBSlave.addMemoryChangeCallback(2000, setLed);
+	picoSlaveUSB* slaveUSB = picoSlaveUSB::get();
+
+	slaveUSB->initialize(memory, 2048);
+	slaveUSB->enableMemBackups(buffer, 16);
+	slaveUSB->addMemoryChangeCallback(2000, setLed);
 
 	while (true) {
-	  	USBSlave.process();
+	  	slaveUSB->process();
 	}
 }
 
