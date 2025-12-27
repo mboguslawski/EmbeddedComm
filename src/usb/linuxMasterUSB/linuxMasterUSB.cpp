@@ -1,5 +1,5 @@
 #include "linuxMasterUSB.hpp"
-#include <stdio.h>
+
 linuxMasterUSB::linuxMasterUSB():
 	ctx(nullptr)
 {
@@ -38,14 +38,21 @@ int linuxMasterUSB::readBytes(slaveInfo &slave, uint8_t *byteArray, uint32_t num
 		return 0;
 	}
 
-	// TODO: read chunks bigger then 64
-	int bytesRead = 0;
-	int ret = libusb_bulk_transfer(dev, 0x81, byteArray, numberOfBytes, &bytesRead, 1000000);
-	if (ret < 0) {
-		return ret;
+	// One transfer can have up to 64 bytes. Sometimes single read will be not enough.
+	uint32_t toRead = numberOfBytes;
+	while (toRead > 0) {
+		int bytesRead = 0;
+		int ret = libusb_bulk_transfer(dev, 0x81, &byteArray[numberOfBytes-toRead], std::min((uint32_t)64, toRead), &bytesRead, 1000000);
+		
+		if (ret < 0) {
+			return ret;
+		}
+
+		toRead -= std::min((uint32_t)64, toRead);
 	}
 
-	return bytesRead;
+
+	return numberOfBytes;
 }
 
 libusb_device_handle* linuxMasterUSB::openDevice(slaveInfo &slave) {
