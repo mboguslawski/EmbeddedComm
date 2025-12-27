@@ -29,9 +29,6 @@ along with this program.  If not, see https://www.gnu.org/licenses/.
 // Only one instance of this class allowed
 class picoSlaveUSB : public GenericSlave {
 public:
-	picoSlaveUSB();
-	~picoSlaveUSB();
-
 	// Initialize usb slave with allocated memory.
 	void initialize(uint8_t *memory, uint32_t memorySize);
 
@@ -46,6 +43,10 @@ protected:
 	void sendToMaster(uint32_t nBytes) override;
 
 private:
+	// Do not allow creating new objects. They will interfere with slaveUSB object.
+	picoSlaveUSB();
+	~picoSlaveUSB();
+
 	// If master requested read, send data to tx buffer.
 	void bulkInHandler();
 
